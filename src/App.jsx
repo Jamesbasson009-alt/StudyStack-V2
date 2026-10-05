@@ -701,13 +701,17 @@ function App() {
     if (!gridRef.current) return;
     setIsExporting(true);
     try {
+      // Render at roughly 200 dpi for A4 landscape (~2200px wide), never more.
+      // A fixed scale of 2 on a wide screen made enormous canvases.
+      const gridWidth = gridRef.current.offsetWidth || 1;
+      const scale = Math.min(2, 2200 / gridWidth);
       const canvas = await html2canvas(gridRef.current, {
-        scale: 2,
+        scale,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
       });
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
@@ -723,7 +727,7 @@ function App() {
       const x = (pdfWidth - w) / 2;
       const y = (pdfHeight - h) / 2;
 
-      pdf.addImage(imgData, 'PNG', x, y, w, h);
+      pdf.addImage(imgData, 'JPEG', x, y, w, h, undefined, 'FAST');
       const semSuffix = selectedSemester ? `_${selectedSemester}` : '';
       pdf.save(`UP_Timetable${semSuffix}.pdf`);
     } catch (err) {
