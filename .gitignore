@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+.env.local
+uploads/
+parsed_timetable.csv
+parsed_timetable.json
+.DS_Store
