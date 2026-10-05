@@ -211,7 +211,7 @@ export function TimetableDemo({ onLaunchGenerator }) {
                         <span className="td-block-act">{m.activity}</span>
                       </div>
                       {height > 34 && (
-                        <div className="td-block-sub">{m.venues?.[0]} · {m.group}</div>
+                        <div className="td-block-sub">{m.group}</div>
                       )}
                     </div>
                   );
