@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PortalGuideModal } from '../components/PortalGuideModal.jsx';
+import { TimetableDemo } from '../components/TimetableDemo.jsx';
 
 const IconZap = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1072,6 +1073,18 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
             <p className="pref-desc">Finishes your Friday schedule early so your weekend starts ahead of time.</p>
           </div>
         </div>
+      </section>
+
+      {/* Live demo */}
+      <section id="demo" className="landing-section" style={{ paddingTop: 40 }}>
+        <div className="section-header-center">
+          <span className="section-tag">Live Demo</span>
+          <h2 className="section-title">See It Work</h2>
+          <p className="section-desc">
+            Switch the preference or flick through options. Every schedule below is clash-free.
+          </p>
+        </div>
+        <TimetableDemo onLaunchGenerator={onLaunchGenerator} />
       </section>
 
       {/* How it works Section */}
