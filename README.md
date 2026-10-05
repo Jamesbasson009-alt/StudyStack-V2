@@ -8,7 +8,7 @@ practical, and tutorial groups.
 PDF parsing and the scheduling algorithm run entirely in the browser — your
 PDF is never uploaded to a server.
 
-**Live:** https://timetable-maker-nu.vercel.app
+**Live:** https://studystack.me
 
 ## Tech stack
 
