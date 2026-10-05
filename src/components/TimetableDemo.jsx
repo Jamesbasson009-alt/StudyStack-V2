@@ -120,7 +120,6 @@ export function TimetableDemo({ onLaunchGenerator }) {
           font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700;
           border: 1px solid currentColor; border-radius: 3px; padding: 0 3px; opacity: 0.8;
         }
-        .td-block-sub { color: #475569; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         .td-footer {
           display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
@@ -210,9 +209,6 @@ export function TimetableDemo({ onLaunchGenerator }) {
                         <span className="td-block-mod">{m.module}</span>
                         <span className="td-block-act">{m.activity}</span>
                       </div>
-                      {height > 34 && (
-                        <div className="td-block-sub">{m.group}</div>
-                      )}
                     </div>
                   );
                 })}
