@@ -956,6 +956,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         <div className="landing-nav-links">
           <a href="#how-it-works" className="landing-nav-link" onClick={handleNavClick('how-it-works')}>How it works</a>
           <a href="#preferences" className="landing-nav-link" onClick={handleNavClick('preferences')}>Preferences</a>
+          <a href="#demo" className="landing-nav-link" onClick={handleNavClick('demo')}>Demo</a>
           <a href="#faq" className="landing-nav-link" onClick={handleNavClick('faq')}>FAQ</a>
           <button
             type="button"
@@ -1306,6 +1307,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
               <a href="#features" className="footer-link-item" onClick={handleNavClick('features')}>Features</a>
               <a href="#how-it-works" className="footer-link-item" onClick={handleNavClick('how-it-works')}>How it works</a>
               <a href="#preferences" className="footer-link-item" onClick={handleNavClick('preferences')}>Preferences</a>
+              <a href="#demo" className="footer-link-item" onClick={handleNavClick('demo')}>Demo</a>
               <a href="#textbooks" className="footer-link-item" onClick={handleNavClick('textbooks')}>Textbooks</a>
               <a href="#faq" className="footer-link-item" onClick={handleNavClick('faq')}>FAQ</a>
               <button
