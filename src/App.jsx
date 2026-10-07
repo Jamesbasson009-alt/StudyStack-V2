@@ -316,6 +316,7 @@ function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const [isDraggingMain, setIsDraggingMain] = useState(false);
   const [showPortalGuide, setShowPortalGuide] = useState(false);
   const [parsedData, setParsedData] = useState(null);
   const [searchFilter, setSearchFilter] = useState('');
@@ -1125,6 +1126,51 @@ function App() {
           font-family: var(--font-mono);
           color: var(--text-muted);
           margin-top: 2px;
+        }
+
+        /* Large drag-and-drop zone shown in the main canvas before a PDF is uploaded */
+        .main-dropzone {
+          width: 100%;
+          max-width: 480px;
+          box-sizing: border-box;
+          border: 2px dashed #94a3b8;
+          background: var(--bg-subtle);
+          border-radius: 12px;
+          padding: 32px 24px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          color: #0e3868;
+          cursor: pointer;
+          transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+        }
+
+        .main-dropzone:hover {
+          border-color: #0e3868;
+          background: #eef4fb;
+        }
+
+        .main-dropzone.dragging {
+          border-color: #0e3868;
+          background: #dbeafe;
+          transform: scale(1.01);
+        }
+
+        .main-dropzone.processing {
+          pointer-events: none;
+          opacity: 0.7;
+        }
+
+        .main-dropzone-title {
+          font-size: 15px;
+          font-weight: 700;
+          color: #0e3868;
+        }
+
+        .main-dropzone-or {
+          font-size: 12px;
+          color: var(--text-muted);
         }
 
         .portal-guide-trigger {
@@ -2678,14 +2724,59 @@ function App() {
                   <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 420, margin: '0 auto 20px', lineHeight: 1.6 }}>
                     Upload your official University of Pretoria module timetable PDF (<code style={{ fontFamily: 'var(--font-mono)', background: 'var(--bg-subtle)', padding: '2px 6px', borderRadius: 4 }}>UP_MOD_XLS*.pdf</code>) to automatically resolve clashes and generate your schedule.
                   </div>
-                  <button
-                    className="btn btn-primary"
-                    style={{ padding: '11px 24px', fontSize: 14, fontWeight: 600, background: '#0e3868', borderColor: '#0e3868' }}
-                    onClick={() => fileInputRef.current?.click()}
+                  <div
+                    className={`main-dropzone${isDraggingMain ? ' dragging' : ''}${uploadState === 'processing' ? ' processing' : ''}`}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      setIsDraggingMain(true);
+                    }}
+                    onDragOver={(e) => {
+                      onDragOver(e);
+                      setIsDraggingMain(true);
+                    }}
+                    onDragLeave={(e) => {
+                      // Ignore leave events fired when moving onto a child element
+                      if (!e.currentTarget.contains(e.relatedTarget)) setIsDraggingMain(false);
+                    }}
+                    onDrop={(e) => {
+                      setIsDraggingMain(false);
+                      onDrop(e);
+                    }}
+                    onClick={() => {
+                      setUploadError('');
+                      fileInputRef.current?.click();
+                    }}
                   >
-                    <Icons.Upload />
-                    <span>Select UP module PDF</span>
-                  </button>
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <div className="main-dropzone-title">
+                      {uploadState === 'processing'
+                        ? 'Extracting schedule entries…'
+                        : isDraggingMain
+                        ? 'Drop your PDF here'
+                        : 'Drag & drop your UP module PDF here'}
+                    </div>
+                    <div className="main-dropzone-or">or</div>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ padding: '11px 24px', fontSize: 14, fontWeight: 600, background: '#0e3868', borderColor: '#0e3868' }}
+                    >
+                      <Icons.Upload />
+                      <span>Select UP module PDF</span>
+                    </button>
+                    <div className="dropzone-hint">UP_MOD_XLS*.pdf</div>
+                  </div>
+
+                  {uploadError && (
+                    <div className="alert-error" style={{ marginTop: 12, maxWidth: 480 }}>
+                      <Icons.AlertCircle />
+                      <span>{uploadError}</span>
+                    </div>
+                  )}
                   <button
                     type="button"
                     className="portal-guide-trigger"
