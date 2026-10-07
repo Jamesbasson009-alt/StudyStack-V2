@@ -986,17 +986,17 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         <div className="hero-logo-showcase">
           <img
             src="/studystack-logo-cropped.png"
-            alt="StudyStack Official Logo"
+            alt="StudyStack – UP timetable generator logo"
             className="hero-main-logo"
           />
         </div>
 
         <h1 className="hero-headline">
-          Craft your clash-free timetable in seconds.
+          UP Timetable Generator: clash-free schedules in seconds
         </h1>
 
         <p className="hero-subhead">
-          Upload your official UP module timetable PDF. StudyStack automatically tests lecture,
+          Upload your official University of Pretoria (Tuks) module timetable PDF. StudyStack automatically tests lecture,
           practical, and tutorial combinations to find zero-clash schedules tailored to your lifestyle.
           Then pick up the textbooks for your modules from other UP students.
         </p>
@@ -1045,7 +1045,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           <div className="pref-preview-card">
             <div className="pref-icon-header">
               <span className="pref-icon"><IconSunrise /></span>
-              <h4 className="pref-title">Morning Schedule</h4>
+              <h3 className="pref-title">Morning Schedule</h3>
             </div>
             <p className="pref-desc">Prioritizes earlier classes so you finish early and free up afternoons.</p>
           </div>
@@ -1053,7 +1053,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           <div className="pref-preview-card">
             <div className="pref-icon-header">
               <span className="pref-icon"><IconSunset /></span>
-              <h4 className="pref-title">Afternoon Schedule</h4>
+              <h3 className="pref-title">Afternoon Schedule</h3>
             </div>
             <p className="pref-desc">Schedules classes later in the day for late risers and commuters.</p>
           </div>
@@ -1061,7 +1061,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           <div className="pref-preview-card">
             <div className="pref-icon-header">
               <span className="pref-icon"><IconCalendar /></span>
-              <h4 className="pref-title">Free Day Maximizer</h4>
+              <h3 className="pref-title">Free Day Maximizer</h3>
             </div>
             <p className="pref-desc">Concentrates sessions into fewer days to unlock entire weekdays with 0 classes.</p>
           </div>
@@ -1069,7 +1069,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           <div className="pref-preview-card">
             <div className="pref-icon-header">
               <span className="pref-icon"><IconFastForward /></span>
-              <h4 className="pref-title">Early Friday</h4>
+              <h3 className="pref-title">Early Friday</h3>
             </div>
             <p className="pref-desc">Finishes your Friday schedule early so your weekend starts ahead of time.</p>
           </div>
@@ -1254,16 +1254,15 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
               <div key={idx} className="faq-item">
                 <button
                   className="faq-question-btn"
+                  aria-expanded={isOpen}
                   onClick={() => setActiveFaq(isOpen ? null : idx)}
                 >
                   <span>{faq.q}</span>
                   <span style={{ fontSize: 18, color: '#0e3868' }}>{isOpen ? '−' : '+'}</span>
                 </button>
-                {isOpen && (
-                  <div className="faq-answer">
-                    {faq.a}
-                  </div>
-                )}
+                <div className="faq-answer" style={{ display: isOpen ? 'block' : 'none' }}>
+                  {faq.a}
+                </div>
               </div>
             );
           })}
@@ -1299,7 +1298,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
                 <span className="footer-brand-title">StudyStack</span>
               </div>
               <p className="footer-brand-desc">
-                Fast, private, clash-free timetable generator and student textbook marketplace for University of Pretoria students.
+                Fast, private, clash-free timetable generator and student textbook marketplace for University of Pretoria (Tuks) students.
               </p>
             </div>
 
