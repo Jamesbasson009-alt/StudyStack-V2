@@ -10,6 +10,7 @@ import { LegalPage } from './pages/LegalPage.jsx';
 import { BooksPage } from './pages/BooksPage.jsx';
 import { PortalGuideModal } from './components/PortalGuideModal.jsx';
 import { getSession, onSessionChange, signOut } from './lib/auth.js';
+import { loadTimetable, saveTimetable } from './lib/timetableStore.js';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const DAY_MAP = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri' };
@@ -301,6 +302,8 @@ function App() {
   }, []);
 
   const handleSignOut = async () => {
+    // Make sure the latest timetable edit reaches the database before the session ends.
+    await flushSave();
     await signOut();
     setSession(null);
     if (typeof window !== 'undefined') {
@@ -752,6 +755,158 @@ function App() {
   }, [records, searchFilter]);
 
   const curSolution = generatorResult?.allSolutions?.[solutionIndex] || generatorResult?.bestSolution;
+
+  // ---------------------------------------------------------------------------
+  // Saved timetable (per account)
+  // The parsed PDF + the choices that produced the timetable are stored in Supabase
+  // and restored on login. On restore we re-run the solver instead of storing its
+  // output: smaller rows, and the result always matches the current solver code.
+  // ---------------------------------------------------------------------------
+  // Keyed on email, not the session object: the session object changes on every
+  // token refresh and would otherwise re-trigger the load and overwrite live edits.
+  const userKey = session?.email || null;
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
+  const [persistReady, setPersistReady] = useState(false); // saved copy loaded (or none exists)
+  const saveTimerRef = useRef(null);
+  const pendingSaveRef = useRef(null); // latest payload not yet written
+  const lastSavedRef = useRef({ pd: null, json: '' }); // what the database already has
+
+  const buildSettings = (v) => ({
+    fileName: v.fileName,
+    semester: v.semester,
+    preference: v.preference,
+    enrolledModules: v.enrolledModules,
+    mixableModules: v.mixableModules,
+    selectedGroups: v.selectedGroups,
+    solutionIndex: v.solutionIndex,
+  });
+
+  const flushSave = async () => {
+    clearTimeout(saveTimerRef.current);
+    const payload = pendingSaveRef.current;
+    if (!payload) return;
+    pendingSaveRef.current = null;
+    setSaveStatus('saving');
+    try {
+      await saveTimetable(payload);
+      lastSavedRef.current = { pd: payload.parsedData, json: JSON.stringify(payload.settings) };
+      setSaveStatus('saved');
+    } catch (e) {
+      console.error('Saving timetable failed:', e);
+      pendingSaveRef.current = payload; // keep it so Retry has something to send
+      setSaveStatus('error');
+    }
+  };
+
+  // Load the saved timetable once per signed-in user.
+  useEffect(() => {
+    if (!userKey) return;
+    let cancelled = false;
+    setPersistReady(false);
+    setGeneratingLabel('Loading your saved timetable…');
+    setIsGenerating(true);
+
+    (async () => {
+      let saved = null;
+      try {
+        saved = await loadTimetable();
+      } catch (e) {
+        console.error('Could not load saved timetable:', e);
+      }
+      if (cancelled) return;
+
+      const pd = saved?.parsedData;
+      const s = saved?.settings;
+      if (!pd?.records?.length || !s?.semester || !s?.enrolledModules?.length) {
+        setIsGenerating(false);
+        setPersistReady(true);
+        return;
+      }
+
+      // Deferred one tick so the loading overlay paints before the solver blocks the thread.
+      setTimeout(() => {
+        if (cancelled) return;
+        try {
+          const pref = s.preference || 'morning';
+          const mods = s.enrolledModules;
+          const mix = s.mixableModules || [];
+          const res = generateTimetable(pd.records, mods, pref, s.semester, mix);
+          const idx = Math.min(s.solutionIndex || 0, Math.max(0, (res.allSolutions?.length || 1) - 1));
+          const groups =
+            s.selectedGroups && Object.keys(s.selectedGroups).length
+              ? s.selectedGroups
+              : res.selectedGroupsMap || {};
+          const fileName = s.fileName || pd.originalName || '';
+
+          // Mark this exact state as already saved so restoring doesn't trigger a re-save.
+          lastSavedRef.current = {
+            pd,
+            json: JSON.stringify(buildSettings({
+              fileName, semester: s.semester, preference: pref,
+              enrolledModules: mods, mixableModules: mix, selectedGroups: groups, solutionIndex: idx,
+            })),
+          };
+
+          setParsedData(pd);
+          setUploadState('done');
+          setSelectedFileName(fileName);
+          setSetupSemester(s.semester);
+          setSetupPreference(pref);
+          setSetupEnrolledModules(mods);
+          setSetupMixableModules(mix);
+          setGeneratorResult(res);
+          setSchedulePreference(pref);
+          setSelectedSemester(s.semester);
+          setEnrolledModules(mods);
+          setMixableModules(mix);
+          setSolutionIndex(idx);
+          setSelectedGroups(groups);
+          setSaveStatus('saved');
+        } catch (e) {
+          console.error('Could not restore saved timetable:', e);
+        }
+        setIsGenerating(false);
+        setPersistReady(true);
+      }, 50);
+    })();
+
+    return () => { cancelled = true; };
+  }, [userKey]);
+
+  // Debounced autosave whenever the generated timetable or its settings change.
+  useEffect(() => {
+    if (!persistReady || isGenerating) return;
+    if (!parsedData || !selectedSemester || enrolledModules.length === 0) return;
+
+    const settings = buildSettings({
+      fileName: selectedFileName,
+      semester: selectedSemester,
+      preference: schedulePreference,
+      enrolledModules,
+      mixableModules,
+      selectedGroups,
+      solutionIndex,
+    });
+    const json = JSON.stringify(settings);
+    if (lastSavedRef.current.pd === parsedData && lastSavedRef.current.json === json) return;
+
+    pendingSaveRef.current = { parsedData, settings };
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(flushSave, 1500);
+    return () => clearTimeout(saveTimerRef.current);
+  }, [
+    persistReady, isGenerating, parsedData, selectedFileName, selectedSemester,
+    schedulePreference, enrolledModules, mixableModules, selectedGroups, solutionIndex,
+  ]);
+
+  // Don't lose a pending edit when the tab is hidden or closed.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flushSave();
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, []);
 
   if (currentView === 'terms' || currentView === 'privacy') {
     return <LegalPage page={currentView} onNavigate={navigateTo} />;
@@ -2112,6 +2267,24 @@ function App() {
           )}
 
           <div className="user-menu">
+            {saveStatus !== 'idle' && (
+              <span
+                role="status"
+                style={{
+                  fontSize: 12,
+                  color: saveStatus === 'error' ? 'var(--danger)' : 'var(--text-muted)',
+                }}
+              >
+                {saveStatus === 'saving' && 'Saving…'}
+                {saveStatus === 'saved' && 'Saved to your account'}
+                {saveStatus === 'error' && (
+                  <>
+                    Couldn't save{' '}
+                    <button className="btn btn-sm" onClick={flushSave}>Retry</button>
+                  </>
+                )}
+              </span>
+            )}
             <span className="user-chip" title={session.email}>u{session.studentNumber}</span>
             <button className="btn btn-sm" onClick={handleSignOut} title={`Signed in as ${session.email}`}>
               Sign out
