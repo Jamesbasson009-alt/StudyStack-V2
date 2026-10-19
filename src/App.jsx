@@ -11,6 +11,7 @@ import { BooksPage } from './pages/BooksPage.jsx';
 import { PortalGuideModal } from './components/PortalGuideModal.jsx';
 import { getSession, onSessionChange, signOut } from './lib/auth.js';
 import { loadTimetable, saveTimetable } from './lib/timetableStore.js';
+import { FriendsModal, useFriendsShare } from './components/FriendsModal.jsx';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const DAY_MAP = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri' };
@@ -563,19 +564,16 @@ function App() {
     }));
   };
 
-  // Events filtered for grid view based on semester, module filter, and EXACT group allocation per unitKey
-  const events = useMemo(() => {
+  // Every enrolled event for the chosen semester and EXACT group allocation per unitKey,
+  // ignoring the module focus filter. This is what gets shared with friends, so focusing
+  // the grid on one module never shrinks the timetable they see.
+  const allEvents = useMemo(() => {
     if (!records.length || !selectedSemester || !enrolledModules.length) return [];
 
     let subset = records.filter((r) => 
       isMatchingSemester(r.semester, selectedSemester) && 
       enrolledModules.includes(r.module)
     );
-
-    // Module focus filter
-    if (selectedModuleFilter !== 'ALL') {
-      subset = subset.filter((r) => r.module === selectedModuleFilter);
-    }
 
     // STRICT SINGLE-GROUP FILTER:
     // If module is mixed and activity is 'L', check unitKey `${module}_L_${period}`
@@ -593,7 +591,13 @@ function App() {
     });
 
     return recordsToEvents(subset, moduleThemesMap);
-  }, [records, selectedSemester, enrolledModules, selectedModuleFilter, selectedGroups, mixableModules, moduleThemesMap]);
+  }, [records, selectedSemester, enrolledModules, selectedGroups, mixableModules, moduleThemesMap]);
+
+  // Events shown in the grid: the same, narrowed by the module focus filter.
+  const events = useMemo(
+    () => (selectedModuleFilter === 'ALL' ? allEvents : allEvents.filter((e) => e.title === selectedModuleFilter)),
+    [allEvents, selectedModuleFilter]
+  );
 
   const schedule = useMemo(() => {
     const grid = Array.from({ length: PERIODS.length }, () =>
@@ -907,6 +911,16 @@ function App() {
     document.addEventListener('visibilitychange', onHide);
     return () => document.removeEventListener('visibilitychange', onHide);
   }, []);
+
+  // Friends: share link, friend list, and the free-together views. Must run before the early
+  // returns below. `ready` holds sharing back until the saved timetable has been restored
+  // and the solver has finished, so an empty timetable is never published.
+  const friendsShare = useFriendsShare({
+    userKey,
+    events: allEvents,
+    semester: selectedSemester,
+    ready: persistReady && !isGenerating,
+  });
 
   if (currentView === 'terms' || currentView === 'privacy') {
     return <LegalPage page={currentView} onNavigate={navigateTo} />;
@@ -2285,6 +2299,14 @@ function App() {
                 )}
               </span>
             )}
+            <button
+              className="btn btn-sm"
+              onClick={friendsShare.openModal}
+              disabled={records.length === 0}
+              title={records.length === 0 ? 'Upload your timetable PDF first' : 'Share your timetable and compare with friends'}
+            >
+              Friends
+            </button>
             <span className="user-chip" title={session.email}>u{session.studentNumber}</span>
             <button className="btn btn-sm" onClick={handleSignOut} title={`Signed in as ${session.email}`}>
               Sign out
@@ -3159,6 +3181,8 @@ function App() {
           </div>
         </div>
       )}
+
+      <FriendsModal share={friendsShare} />
 
       {/* Solver Loading Overlay - shown during initial generation and any preference/semester/module change */}
       {isGenerating && (
