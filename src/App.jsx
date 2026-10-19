@@ -87,6 +87,16 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingLabel, setGeneratingLabel] = useState('Generating your timetable…');
 
+  // Collapsible sidebar module cards state
+  const [expandedModules, setExpandedModules] = useState({});
+  // Setup workflow group mixing accordion toggle
+  const [showSetupMixOptions, setShowSetupMixOptions] = useState(false);
+
+  const toggleModuleExpanded = (mod, e) => {
+    if (e) e.stopPropagation();
+    setExpandedModules((prev) => ({ ...prev, [mod]: !prev[mod] }));
+  };
+
   const gridRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -764,74 +774,14 @@ function App() {
 
         <div className="header-actions">
           {records.length > 0 && activeTab === 'grid' && selectedSemester && (
-            <>
-              {/* 4-Item Quick Preference Switcher */}
-              <div className="segmented-group">
-                <button
-                  className={`segmented-btn ${schedulePreference === 'morning' ? 'active' : ''}`}
-                  onClick={() => handleTogglePreference('morning')}
-                  title="Earlier classes first"
-                  disabled={isGenerating}
-                >
-                  <Icons.Sun />
-                  <span>Morning</span>
-                </button>
-                <button
-                  className={`segmented-btn ${schedulePreference === 'afternoon' ? 'active' : ''}`}
-                  onClick={() => handleTogglePreference('afternoon')}
-                  title="Later classes first"
-                  disabled={isGenerating}
-                >
-                  <Icons.Sunset />
-                  <span>Afternoon</span>
-                </button>
-                <button
-                  className={`segmented-btn ${schedulePreference === 'free_day' ? 'active' : ''}`}
-                  onClick={() => handleTogglePreference('free_day')}
-                  title="Maximize days with 0 classes or lightest day"
-                  disabled={isGenerating}
-                >
-                  <Icons.Coffee />
-                  <span>Free day</span>
-                </button>
-                <button
-                  className={`segmented-btn ${schedulePreference === 'early_friday' ? 'active' : ''}`}
-                  onClick={() => handleTogglePreference('early_friday')}
-                  title="Finish Friday as early as possible"
-                  disabled={isGenerating}
-                >
-                  <Icons.Zap />
-                  <span>Early Fri</span>
-                </button>
-              </div>
-
-              {/* Semester Switcher */}
-              <div className="segmented-group">
-                <button
-                  className={`segmented-btn ${selectedSemester === 'S1' ? 'active' : ''}`}
-                  onClick={() => handleSwitchSemester('S1')}
-                  disabled={isGenerating}
-                >
-                  S1
-                </button>
-                <button
-                  className={`segmented-btn ${selectedSemester === 'S2' ? 'active' : ''}`}
-                  onClick={() => handleSwitchSemester('S2')}
-                  disabled={isGenerating}
-                >
-                  S2
-                </button>
-              </div>
-
-              <button
-                className="btn btn-primary"
-                onClick={downloadPdf}
-                disabled={isExporting}
-              >
-                <Icons.Download />
-                <span>{isExporting ? 'Generating PDF…' : 'Export PDF'}</span>
-              </button>
-            </>
+            <button
+              className="btn btn-primary"
+              onClick={downloadPdf}
+              disabled={isExporting}
+            >
+              <Icons.Download />
+              <span>{isExporting ? 'Generating PDF…' : 'Export PDF'}</span>
+            </button>
           )}
 
           <div className="user-menu">
@@ -844,7 +794,7 @@ function App() {
                 }}
               >
                 {saveStatus === 'saving' && 'Saving…'}
-                {saveStatus === 'saved' && 'Saved to your account'}
+                {saveStatus === 'saved' && 'Saved'}
                 {saveStatus === 'error' && (
                   <>
                     Couldn't save{' '}
@@ -859,7 +809,7 @@ function App() {
               disabled={records.length === 0}
               title={records.length === 0 ? 'Upload your timetable PDF first' : 'Share your timetable and compare with friends'}
             >
-              Friends
+              👥 Friends
             </button>
             <span className="user-chip" title={session.email}>u{session.studentNumber}</span>
             <button className="btn btn-sm" onClick={handleSignOut} title={`Signed in as ${session.email}`}>
@@ -947,7 +897,75 @@ function App() {
 
             {records.length > 0 && selectedSemester && (
               <>
-                <div className="sidebar-section">
+                {/* Timetable Preferences & Semester Controls in Sidebar */}
+                <div className="sidebar-controls-section">
+                  <div className="sidebar-ctrl-row">
+                    <span className="sidebar-ctrl-label">Semester</span>
+                    <div className="segmented-group">
+                      <button
+                        className={`segmented-btn ${selectedSemester === 'S1' ? 'active' : ''}`}
+                        onClick={() => handleSwitchSemester('S1')}
+                        disabled={isGenerating}
+                      >
+                        S1
+                      </button>
+                      <button
+                        className={`segmented-btn ${selectedSemester === 'S2' ? 'active' : ''}`}
+                        onClick={() => handleSwitchSemester('S2')}
+                        disabled={isGenerating}
+                      >
+                        S2
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="sidebar-ctrl-label" style={{ marginBottom: 6 }}>Optimization Goal</div>
+                    <div className="sidebar-pref-group">
+                      <button
+                        type="button"
+                        className={`sidebar-pref-btn ${schedulePreference === 'morning' ? 'active' : ''}`}
+                        onClick={() => handleTogglePreference('morning')}
+                        disabled={isGenerating}
+                        title="Earlier classes first"
+                      >
+                        <Icons.Sun />
+                        <span>Morning</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`sidebar-pref-btn ${schedulePreference === 'afternoon' ? 'active' : ''}`}
+                        onClick={() => handleTogglePreference('afternoon')}
+                        disabled={isGenerating}
+                        title="Later classes first"
+                      >
+                        <Icons.Sunset />
+                        <span>Afternoon</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`sidebar-pref-btn ${schedulePreference === 'free_day' ? 'active' : ''}`}
+                        onClick={() => handleTogglePreference('free_day')}
+                        disabled={isGenerating}
+                        title="Maximize free days"
+                      >
+                        <Icons.Coffee />
+                        <span>Free day</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`sidebar-pref-btn ${schedulePreference === 'early_friday' ? 'active' : ''}`}
+                        onClick={() => handleTogglePreference('early_friday')}
+                        disabled={isGenerating}
+                        title="Finish Friday as early as possible"
+                      >
+                        <Icons.Zap />
+                        <span>Early Fri</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Schedule Status Banner */}
                   <div className={`schedule-status-banner ${totalClashes > 0 ? 'has-clash-banner' : ''}`}>
                     <div className={`schedule-status-title ${totalClashes > 0 ? 'has-clash-title' : ''}`}>
                       {totalClashes > 0 ? <Icons.AlertCircle /> : <Icons.Check />}
@@ -1021,75 +1039,92 @@ function App() {
                   </div>
 
                   <div className="enrolled-module-list">
-                    {moduleActivityGroups.map((item) => (
-                      <div
-                        key={item.module}
-                        className={`enrolled-module-card ${selectedModuleFilter === item.module ? 'focused' : ''}`}
-                      >
-                        <div className="enrolled-module-row">
-                          <div 
-                            style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flex: 1 }}
+                    {moduleActivityGroups.map((item) => {
+                      const isExpanded = !!expandedModules[item.module];
+                      const acts = Object.keys(item.activities);
+                      const actCount = acts.length;
+
+                      return (
+                        <div
+                          key={item.module}
+                          className={`enrolled-module-card ${selectedModuleFilter === item.module ? 'focused' : ''}`}
+                        >
+                          <div
+                            className="enrolled-module-row"
                             onClick={() => setSelectedModuleFilter(selectedModuleFilter === item.module ? 'ALL' : item.module)}
                             title="Click to focus on this module in the grid"
                           >
-                            <span
-                              className="module-swatch"
-                              style={{ background: item.theme.border }}
-                            />
-                            <strong className="font-mono" style={{ fontSize: 12 }}>
-                              {item.module}
-                            </strong>
+                            <div className="module-main-info">
+                              <span
+                                className="module-swatch"
+                                style={{ background: item.theme.border }}
+                              />
+                              <strong className="module-code-text">{item.module}</strong>
+                              <span className="module-act-summary">{actCount} group{actCount === 1 ? '' : 's'}</span>
+                            </div>
+
+                            <div className="module-card-actions" onClick={(e) => e.stopPropagation()}>
+                              {item.hasMultipleLecturePeriods && (
+                                <button
+                                  type="button"
+                                  className={`mix-toggle-pill ${item.isMixed ? 'active' : ''}`}
+                                  onClick={() => handleToggleMixableModule(item.module)}
+                                  title={item.isMixed ? 'Lecture groups are mixed across periods. Click to lock to single group.' : 'Click to allow mixing lecture groups across periods'}
+                                >
+                                  <Icons.Shuffle />
+                                  <span>{item.isMixed ? 'Mixed' : 'Mix'}</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                className={`module-expand-btn ${isExpanded ? 'expanded' : ''}`}
+                                onClick={(e) => toggleModuleExpanded(item.module, e)}
+                                title={isExpanded ? 'Hide groups' : 'Configure groups'}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                              </button>
+
+                              <button
+                                className="btn btn-sm"
+                                style={{ padding: '2px 5px', fontSize: 10, lineHeight: 1 }}
+                                onClick={() => handleToggleModule(item.module)}
+                                title="Remove this module from timetable"
+                              >
+                                <Icons.Close />
+                              </button>
+                            </div>
                           </div>
 
-                          {item.hasMultipleLecturePeriods && (
-                            <button
-                              type="button"
-                              className={`mix-toggle-pill ${item.isMixed ? 'active' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleMixableModule(item.module);
-                              }}
-                              title={item.isMixed ? 'Lecture groups are mixed across periods. Click to lock to single group.' : 'Click to allow mixing lecture groups across periods'}
-                            >
-                              <Icons.Shuffle />
-                              <span>{item.isMixed ? 'Mixed' : 'Mix'}</span>
-                            </button>
+                          {/* Collapsible Group Selectors */}
+                          {isExpanded && (
+                            <div className="activity-selectors-grid">
+                              {Object.entries(item.activities).map(([key, actInfo]) => {
+                                const chosen = selectedGroups[actInfo.unitKey] || actInfo.groups[0];
+                                return (
+                                  <div key={key} className="activity-row">
+                                    <span className="activity-label">
+                                      {actInfo.label}:
+                                    </span>
+                                    <select
+                                      className="group-select"
+                                      value={chosen}
+                                      onChange={(e) => handleManualGroupChange(actInfo.unitKey, e.target.value)}
+                                    >
+                                      {actInfo.groups.map(g => (
+                                        <option key={g} value={g}>{g}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
-
-                          <button
-                            className="btn btn-sm"
-                            style={{ padding: '2px 5px', fontSize: 10, lineHeight: 1 }}
-                            onClick={() => handleToggleModule(item.module)}
-                            title="Remove this module from timetable"
-                          >
-                            <Icons.Close />
-                          </button>
                         </div>
-
-                        {/* Interactive Group Selectors per Activity / Period */}
-                        <div className="activity-selectors-grid">
-                          {Object.entries(item.activities).map(([key, actInfo]) => {
-                            const chosen = selectedGroups[actInfo.unitKey] || actInfo.groups[0];
-                            return (
-                              <div key={key} className="activity-row">
-                                <span className="activity-label">
-                                  {actInfo.label}:
-                                </span>
-                                <select
-                                  className="group-select"
-                                  value={chosen}
-                                  onChange={(e) => handleManualGroupChange(actInfo.unitKey, e.target.value)}
-                                >
-                                  {actInfo.groups.map(g => (
-                                    <option key={g} value={g}>{g}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </>
@@ -1100,39 +1135,22 @@ function App() {
           <main className="main-canvas">
             {records.length > 0 && selectedSemester && (
               <>
-                <div className="canvas-toolbar">
-                  <div className="canvas-meta">
-                    <span>Displaying</span>
-                    <strong className="font-mono">{events.length}</strong>
-                    <span>sessions for</span>
-                    <strong style={{ color: 'var(--text-primary)' }}>
-                      {selectedSemester === 'S1' ? 'Semester 1' : 'Semester 2'}
-                    </strong>
-                    <span>
-                      ({schedulePreference === 'free_day'
-                        ? 'Free day preference'
-                        : schedulePreference === 'early_friday'
-                        ? 'Early Friday preference'
-                        : schedulePreference === 'afternoon'
-                        ? 'Afternoon preference'
-                        : 'Morning preference'})
-                    </span>
+                {(selectedModuleFilter !== 'ALL' || totalClashes > 0) && (
+                  <div className="canvas-toolbar">
+                    <div className="canvas-meta">
+                      {selectedModuleFilter !== 'ALL' && (
+                        <span className="status-chip">
+                          Focus: <strong>{selectedModuleFilter}</strong>
+                        </span>
+                      )}
+                      {totalClashes > 0 && (
+                        <span className="clash-summary-chip">
+                          <Icons.AlertCircle />
+                          <span>{totalClashes} clashing slot{totalClashes === 1 ? '' : 's'}</span>
+                        </span>
+                      )}
+                    </div>
 
-                    {totalClashes > 0 && (
-                      <span className="clash-summary-chip">
-                        <Icons.AlertCircle />
-                        <span>{totalClashes} clashing slot{totalClashes === 1 ? '' : 's'}</span>
-                      </span>
-                    )}
-
-                    {selectedModuleFilter !== 'ALL' && (
-                      <span className="status-chip">
-                        Focus: {selectedModuleFilter}
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {selectedModuleFilter !== 'ALL' && (
                       <button
                         className="btn btn-sm"
@@ -1142,7 +1160,7 @@ function App() {
                       </button>
                     )}
                   </div>
-                </div>
+                )}
 
                 {generatorResult?.hasClashes && generatorResult.uniqueClashMessages?.length > 0 && (
                   <div className="clash-warning-box">
@@ -1233,25 +1251,26 @@ function App() {
                   <div className="setup-workflow-card">
                     <div className="setup-workflow-header">
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-                        <img src="/studystack-mark.png" alt="StudyStack" width="36" height="36" style={{ objectFit: 'contain' }} />
+                        <img src="/studystack-mark.png" alt="StudyStack" width="38" height="38" style={{ objectFit: 'contain' }} />
                       </div>
                       <span className="brand-tag" style={{ background: '#0e3868' }}>Auto Timetable Generator</span>
-                      <h2 className="setup-workflow-title">Select Modules & Preferences</h2>
+                      <h2 className="setup-workflow-title">Customize Your Schedule</h2>
                       <p className="setup-workflow-desc">
-                        {records.length} schedule entries extracted. Customize your enrolled modules, group mixing flexibility, and optimization goal.
+                        {records.length} schedule entries extracted. Select your modules and optimization goal to generate a conflict-free timetable.
                       </p>
                     </div>
 
-                    <div className="setup-steps-grid setup-steps-grid-3">
-                      {/* Step 1: Semester & Module Checkboxes */}
-                      <div className="setup-step-card">
-                        <div className="setup-step-number">Step 1</div>
-                        <div className="setup-step-label">Semester & Modules</div>
-                        
-                        <div className="setup-options-group">
+                    {/* Step 1: Semester & Modules */}
+                    <div className="setup-step-section">
+                      <div className="setup-step-header">
+                        <div className="setup-step-title-group">
+                          <span className="setup-step-badge">Step 1</span>
+                          <span className="setup-step-title">Choose Semester & Enrolled Modules</span>
+                        </div>
+                        <div className="segmented-group">
                           <button
                             type="button"
-                            className={`setup-option-btn ${setupSemester === 'S1' ? 'active' : ''}`}
+                            className={`segmented-btn ${setupSemester === 'S1' ? 'active' : ''}`}
                             onClick={() => {
                               setSetupSemester('S1');
                               const m = records.filter(r => isMatchingSemester(r.semester, 'S1'));
@@ -1260,14 +1279,11 @@ function App() {
                               setSetupMixableModules(mods);
                             }}
                           >
-                            <strong style={{ fontSize: 12 }}>Semester 1</strong>
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                              {semesterStats.s1} entries
-                            </span>
+                            Semester 1 ({semesterStats.s1})
                           </button>
                           <button
                             type="button"
-                            className={`setup-option-btn ${setupSemester === 'S2' ? 'active' : ''}`}
+                            className={`segmented-btn ${setupSemester === 'S2' ? 'active' : ''}`}
                             onClick={() => {
                               setSetupSemester('S2');
                               const m = records.filter(r => isMatchingSemester(r.semester, 'S2'));
@@ -1276,186 +1292,223 @@ function App() {
                               setSetupMixableModules(mods);
                             }}
                           >
-                            <strong style={{ fontSize: 12 }}>Semester 2</strong>
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                              {semesterStats.s2} entries
-                            </span>
+                            Semester 2 ({semesterStats.s2})
                           </button>
                         </div>
+                      </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
-                            Enrolled ({setupEnrolledModules.length} of {availableModulesForSemester.length}):
-                          </span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          Enrolled Modules ({setupEnrolledModules.length} of {availableModulesForSemester.length} selected):
+                        </span>
+                        <div style={{ display: 'flex', gap: 6 }}>
                           <button
                             type="button"
                             className="btn btn-sm"
-                            onClick={() => {
-                              if (setupEnrolledModules.length === availableModulesForSemester.length) {
-                                setSetupEnrolledModules([]);
-                              } else {
-                                setSetupEnrolledModules(availableModulesForSemester);
-                              }
-                            }}
+                            onClick={() => setSetupEnrolledModules(availableModulesForSemester)}
                           >
-                            {setupEnrolledModules.length === availableModulesForSemester.length ? 'Clear' : 'Select All'}
+                            Select All
                           </button>
-                        </div>
-
-                        <div className="module-checkbox-grid">
-                          {availableModulesForSemester.map(mod => {
-                            const isChecked = setupEnrolledModules.includes(mod);
-                            return (
-                              <label key={mod} className={`module-checkbox-label ${isChecked ? 'selected' : ''}`}>
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSetupEnrolledModules(prev => [...prev, mod].sort());
-                                    } else {
-                                      setSetupEnrolledModules(prev => prev.filter(m => m !== mod));
-                                    }
-                                  }}
-                                />
-                                <span>{mod}</span>
-                              </label>
-                            );
-                          })}
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            onClick={() => setSetupEnrolledModules([])}
+                          >
+                            Clear
+                          </button>
                         </div>
                       </div>
 
-                      {/* Step 2: Mix Lecture Groups */}
-                      <div className="setup-step-card">
-                        <div className="setup-step-number">Step 2</div>
-                        <div className="setup-step-label">Mix Lecture Groups</div>
-                        <div className="setup-step-subdesc">
-                          Allow selecting different groups per lecture period (e.g. L1 from G01, L2 from G03) to eliminate clashes & free up days.
-                        </div>
+                      <div className="module-checkbox-grid">
+                        {availableModulesForSemester.map((mod) => {
+                          const isChecked = setupEnrolledModules.includes(mod);
+                          return (
+                            <label key={mod} className={`module-checkbox-label ${isChecked ? 'selected' : ''}`}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSetupEnrolledModules(prev => [...prev, mod].sort());
+                                  } else {
+                                    setSetupEnrolledModules(prev => prev.filter(m => m !== mod));
+                                  }
+                                }}
+                              />
+                              <span>{mod}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
-                            Mixable ({setupMixableModules.filter(m => setupEnrolledModules.includes(m)).length} of {setupEnrolledModules.length}):
-                          </span>
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            <button
-                              type="button"
-                              className="btn btn-sm"
-                              onClick={() => setSetupMixableModules(setupEnrolledModules)}
-                            >
-                              All
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-sm"
-                              onClick={() => setSetupMixableModules([])}
-                            >
-                              None
-                            </button>
+                    {/* Step 2: Optimization Goal */}
+                    <div className="setup-step-section">
+                      <div className="setup-step-header">
+                        <div className="setup-step-title-group">
+                          <span className="setup-step-badge">Step 2</span>
+                          <span className="setup-step-title">Optimization Preference</span>
+                        </div>
+                      </div>
+                      <div className="setup-goals-grid">
+                        <div
+                          className={`setup-goal-card ${setupPreference === 'morning' ? 'active' : ''}`}
+                          onClick={() => setSetupPreference('morning')}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="setup-goal-title-row">
+                            <Icons.Sun />
+                            <span className="setup-goal-title">Morning Schedule</span>
                           </div>
+                          <span className="setup-goal-desc">Prioritizes earlier classes so you finish earlier in the afternoon.</span>
                         </div>
 
-                        <div className="module-checkbox-grid">
-                          {setupEnrolledModules.map(mod => {
-                            const isChecked = setupMixableModules.includes(mod);
-                            return (
-                              <label key={mod} className={`module-checkbox-label ${isChecked ? 'selected' : ''}`}>
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSetupMixableModules(prev => [...prev, mod].sort());
-                                    } else {
-                                      setSetupMixableModules(prev => prev.filter(m => m !== mod));
-                                    }
-                                  }}
-                                />
-                                <span>{mod}</span>
-                              </label>
-                            );
-                          })}
-                          {setupEnrolledModules.length === 0 && (
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '12px 0', textAlign: 'center' }}>
-                              Select enrolled modules in Step 1 first
-                            </div>
-                          )}
+                        <div
+                          className={`setup-goal-card ${setupPreference === 'afternoon' ? 'active' : ''}`}
+                          onClick={() => setSetupPreference('afternoon')}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="setup-goal-title-row">
+                            <Icons.Sunset />
+                            <span className="setup-goal-title">Afternoon Schedule</span>
+                          </div>
+                          <span className="setup-goal-desc">Sleep in later and attend afternoon class sessions.</span>
                         </div>
-                      </div>
 
-                      {/* Step 3: Preference */}
-                      <div className="setup-step-card">
-                        <div className="setup-step-number">Step 3</div>
-                        <div className="setup-step-label">Optimization Goal</div>
-                        <div className="setup-options-grid-2">
-                          <button
-                            type="button"
-                            className={`setup-option-btn ${setupPreference === 'morning' ? 'active' : ''}`}
-                            onClick={() => setSetupPreference('morning')}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <Icons.Sun />
-                              <strong style={{ fontSize: 12 }}>Morning</strong>
-                            </div>
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                              Earlier classes first
-                            </span>
-                          </button>
+                        <div
+                          className={`setup-goal-card ${setupPreference === 'free_day' ? 'active' : ''}`}
+                          onClick={() => setSetupPreference('free_day')}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="setup-goal-title-row">
+                            <Icons.Coffee />
+                            <span className="setup-goal-title">Free Day Maximizer</span>
+                          </div>
+                          <span className="setup-goal-desc">Packs classes together to create entire days with 0 classes or light days.</span>
+                        </div>
 
-                          <button
-                            type="button"
-                            className={`setup-option-btn ${setupPreference === 'afternoon' ? 'active' : ''}`}
-                            onClick={() => setSetupPreference('afternoon')}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <Icons.Sunset />
-                              <strong style={{ fontSize: 12 }}>Afternoon</strong>
-                            </div>
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                              Later classes first
-                            </span>
-                          </button>
-
-                          <button
-                            type="button"
-                            className={`setup-option-btn ${setupPreference === 'free_day' ? 'active' : ''}`}
-                            onClick={() => setSetupPreference('free_day')}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <Icons.Coffee />
-                              <strong style={{ fontSize: 12 }}>Free day</strong>
-                            </div>
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                              Maximize free days & light days
-                            </span>
-                          </button>
-
-                          <button
-                            type="button"
-                            className={`setup-option-btn ${setupPreference === 'early_friday' ? 'active' : ''}`}
-                            onClick={() => setSetupPreference('early_friday')}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <Icons.Zap />
-                              <strong style={{ fontSize: 12 }}>Early Friday</strong>
-                            </div>
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                              Finishes Friday early
-                            </span>
-                          </button>
+                        <div
+                          className={`setup-goal-card ${setupPreference === 'early_friday' ? 'active' : ''}`}
+                          onClick={() => setSetupPreference('early_friday')}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="setup-goal-title-row">
+                            <Icons.Zap />
+                            <span className="setup-goal-title">Early Friday Finish</span>
+                          </div>
+                          <span className="setup-goal-desc">Finishes Friday as early as possible for weekend travel or study.</span>
                         </div>
                       </div>
                     </div>
 
+                    {/* Step 3: Group Mixing Flexibility (Optional) */}
+                    <div className="setup-mix-accordion">
+                      <button
+                        type="button"
+                        className="setup-mix-trigger"
+                        onClick={() => setShowSetupMixOptions(prev => !prev)}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Icons.Shuffle />
+                            <strong style={{ fontSize: 13.5, color: 'var(--text-primary)' }}>
+                              Group Mixing Flexibility (Optional)
+                            </strong>
+                            <span className="badge-tag">
+                              {setupMixableModules.filter(m => setupEnrolledModules.includes(m)).length} of {setupEnrolledModules.length} enabled
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                            Allow choosing different lecture groups across periods (e.g. L1 from G01, L2 from G02) to resolve clashes.
+                          </div>
+                        </div>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{
+                            transform: showSetupMixOptions ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.15s ease',
+                            color: 'var(--text-muted)'
+                          }}
+                        >
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </button>
+
+                      {showSetupMixOptions && (
+                        <div className="setup-mix-content">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                              Choose which modules allow group mixing:
+                            </span>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button
+                                type="button"
+                                className="btn btn-sm"
+                                onClick={() => setSetupMixableModules(setupEnrolledModules)}
+                              >
+                                Enable All
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm"
+                                onClick={() => setSetupMixableModules([])}
+                              >
+                                Disable All
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="module-checkbox-grid">
+                            {setupEnrolledModules.map((mod) => {
+                              const isChecked = setupMixableModules.includes(mod);
+                              return (
+                                <label key={mod} className={`module-checkbox-label ${isChecked ? 'selected' : ''}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSetupMixableModules(prev => [...prev, mod].sort());
+                                      } else {
+                                        setSetupMixableModules(prev => prev.filter(m => m !== mod));
+                                      }
+                                    }}
+                                  />
+                                  <span>{mod}</span>
+                                </label>
+                              );
+                            })}
+                            {setupEnrolledModules.length === 0 && (
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '12px 0', textAlign: 'center', gridColumn: '1 / -1' }}>
+                                Select enrolled modules above first
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Generate CTA Button */}
                     <div style={{ marginTop: 24, textAlign: 'center' }}>
                       <button
                         className="btn btn-primary"
-                        style={{ padding: '10px 24px', fontSize: 13, fontWeight: 600 }}
+                        style={{ padding: '12px 32px', fontSize: 14, fontWeight: 700, borderRadius: 8, boxShadow: '0 4px 14px rgba(14, 56, 104, 0.25)' }}
                         disabled={setupEnrolledModules.length === 0 || isGenerating}
                         onClick={handleApplySetup}
                       >
                         <Icons.Sparkles />
-                        <span>{isGenerating ? 'Generating…' : `Generate conflict-free timetable (${setupEnrolledModules.length} modules)`}</span>
+                        <span>{isGenerating ? 'Generating…' : `Generate Conflict-Free Timetable (${setupEnrolledModules.length} Modules) →`}</span>
                       </button>
                     </div>
                   </div>
@@ -1467,11 +1520,11 @@ function App() {
                     alt="StudyStack Logo"
                     style={{ height: 72, width: 'auto', objectFit: 'contain', marginBottom: 16 }}
                   />
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#0e3868', marginBottom: 6, letterSpacing: '-0.02em' }}>
-                    Welcome to StudyStack
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#0e3868', marginBottom: 8, letterSpacing: '-0.02em' }}>
+                    Create Your UP Timetable
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 420, margin: '0 auto 20px', lineHeight: 1.6 }}>
-                    Upload your official University of Pretoria module timetable PDF (<code style={{ fontFamily: 'var(--font-mono)', background: 'var(--bg-subtle)', padding: '2px 6px', borderRadius: 4 }}>UP_MOD_XLS*.pdf</code>) to automatically resolve clashes and generate your schedule.
+                  <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', maxWidth: 440, margin: '0 auto 24px', lineHeight: 1.5 }}>
+                    Upload your module schedule PDF from the student portal. StudyStack will automatically resolve all clashes and find your optimal weekly schedule.
                   </div>
                   <div
                     className={`main-dropzone${isDraggingMain ? ' dragging' : ''}${uploadState === 'processing' ? ' processing' : ''}`}
