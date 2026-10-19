@@ -22,7 +22,7 @@ async function currentUserId() {
 }
 
 export function shareUrl(code) {
-  return `${window.location.origin}${window.location.pathname}?friend=${code}`;
+  return `${window.location.origin}${window.location.pathname}?friend=${code}#generator`;
 }
 
 /** Accepts a full share link or a bare code; returns the normalised code or null. */
