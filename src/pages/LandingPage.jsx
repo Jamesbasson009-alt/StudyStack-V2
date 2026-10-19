@@ -117,6 +117,15 @@ const IconSearch = ({ size = 22 }) => (
   </svg>
 );
 
+const IconUsers = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+    <circle cx="9" cy="7" r="4"></circle>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+  </svg>
+);
+
 export function LandingPage({ onLaunchGenerator, onNavigate }) {
   const [activeFaq, setActiveFaq] = useState(null);
   const [showPortalGuide, setShowPortalGuide] = useState(false);
@@ -205,6 +214,10 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
     {
       q: "Can I mix different groups for lectures, practicals, and tutorials?",
       a: "Yes! StudyStack allows you to manually adjust or lock specific groups for each activity (Lecture, Practical, Tutorial) and will recalculate any clashes immediately."
+    },
+    {
+      q: "How does the Friends sharing feature work?",
+      a: "Once your timetable is generated, open the Friends menu to create a personal share link with your name. When your friends add your link, StudyStack instantly calculates mutual free windows (e.g. 1-hour or 2-hour lunch gaps), displays a weekly availability heatmap, and shows classes you attend together. You can pause sharing at any time, and friends can never edit your timetable."
     }
   ];
 
@@ -956,6 +969,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         <div className="landing-nav-links">
           <a href="#how-it-works" className="landing-nav-link" onClick={handleNavClick('how-it-works')}>How it works</a>
           <a href="#preferences" className="landing-nav-link" onClick={handleNavClick('preferences')}>Preferences</a>
+          <a href="#friends" className="landing-nav-link" onClick={handleNavClick('friends')}>Friends</a>
           <a href="#demo" className="landing-nav-link" onClick={handleNavClick('demo')}>Demo</a>
           <a href="#faq" className="landing-nav-link" onClick={handleNavClick('faq')}>FAQ</a>
           <button
@@ -1169,6 +1183,14 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           </div>
 
           <div className="feature-box">
+            <div className="feature-icon-wrapper"><IconUsers /></div>
+            <h3 className="feature-title">Friends & Free Time Sharing</h3>
+            <p className="feature-desc">
+              Create a personal share link in one click. Compare weekly schedules with friends, spot mutual free lunch hours, and find shared classes.
+            </p>
+          </div>
+
+          <div className="feature-box">
             <div className="feature-icon-wrapper"><IconPrinter /></div>
             <h3 className="feature-title">Crisp PDF & CSV Export</h3>
             <p className="feature-desc">
@@ -1183,6 +1205,51 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
               Click any class block in the grid to view venue details, campus locations, activity designations, and period numbers.
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* Friends & Free Time Section */}
+      <section id="friends" className="landing-section">
+        <div className="section-header-center">
+          <span className="section-tag">Friends & Free Time</span>
+          <h2 className="section-title">Compare Timetables & Sit Together in Class</h2>
+          <p className="section-desc">
+            Share your timetable with friends with a single link. StudyStack calculates when you're all free,
+            finds shared lectures, and spots group swap opportunities.
+          </p>
+        </div>
+
+        <div className="steps-grid">
+          <div className="step-card">
+            <div className="feature-icon-wrapper" style={{ marginBottom: 0 }}><IconZap size={20} /></div>
+            <h3 className="step-heading">Instant Best Times Matching</h3>
+            <p className="step-text">
+              See automatically ranked free windows across the week. Filter by 30-minute, 1-hour, or 2-hour gaps so you can coordinate campus lunches and study sessions effortlessly.
+            </p>
+          </div>
+
+          <div className="step-card">
+            <div className="feature-icon-wrapper" style={{ marginBottom: 0 }}><IconCalendar size={20} /></div>
+            <h3 className="step-heading">Interactive 5-Day Heatmap</h3>
+            <p className="step-text">
+              View a visual weekly heat track comparing everyone's busy blocks. Tap any period to inspect who is free, who is busy, and what module they are in.
+            </p>
+          </div>
+
+          <div className="step-card">
+            <div className="feature-icon-wrapper" style={{ marginBottom: 0 }}><IconUsers size={20} /></div>
+            <h3 className="step-heading">Shared Classes & Group Swaps</h3>
+            <p className="step-text">
+              Spot mutual lectures, practicals, and tutorials you share. If you're enrolled in different groups for the same module, StudyStack recommends which group to switch into so you can attend together.
+            </p>
+          </div>
+        </div>
+
+        <div className="market-cta-row" style={{ marginTop: 36 }}>
+          <button type="button" className="market-cta-btn" onClick={onLaunchGenerator}>
+            <IconUsers size={18} />
+            <span>Try Friends Sharing in Generator</span>
+          </button>
         </div>
       </section>
 
@@ -1304,6 +1371,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
 
             <div className="footer-links-row">
               <a href="#features" className="footer-link-item" onClick={handleNavClick('features')}>Features</a>
+              <a href="#friends" className="footer-link-item" onClick={handleNavClick('friends')}>Friends</a>
               <a href="#how-it-works" className="footer-link-item" onClick={handleNavClick('how-it-works')}>How it works</a>
               <a href="#preferences" className="footer-link-item" onClick={handleNavClick('preferences')}>Preferences</a>
               <a href="#demo" className="footer-link-item" onClick={handleNavClick('demo')}>Demo</a>
