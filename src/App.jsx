@@ -412,8 +412,8 @@ function App() {
       const semMatching = data.records.filter(r => isMatchingSemester(r.semester, detectedSem));
       const detectedMods = Array.from(new Set(semMatching.map(r => r.module))).sort();
       setSetupEnrolledModules(detectedMods);
-      setSetupMixableModules(detectedMods);
-      setMixableModules(detectedMods);
+      setSetupMixableModules([]);
+      setMixableModules([]);
     } catch (e) {
       console.error('Client-side PDF parse error:', e);
       setUploadError('Error parsing PDF: ' + (e.message || 'unknown error'));
@@ -809,7 +809,7 @@ function App() {
               disabled={records.length === 0}
               title={records.length === 0 ? 'Upload your timetable PDF first' : 'Share your timetable and compare with friends'}
             >
-              👥 Friends
+              Friends
             </button>
             <span className="user-chip" title={session.email}>u{session.studentNumber}</span>
             <button className="btn btn-sm" onClick={handleSignOut} title={`Signed in as ${session.email}`}>
@@ -1276,7 +1276,7 @@ function App() {
                               const m = records.filter(r => isMatchingSemester(r.semester, 'S1'));
                               const mods = Array.from(new Set(m.map(r => r.module))).sort();
                               setSetupEnrolledModules(mods);
-                              setSetupMixableModules(mods);
+                              setSetupMixableModules([]);
                             }}
                           >
                             Semester 1 ({semesterStats.s1})
@@ -1289,7 +1289,7 @@ function App() {
                               const m = records.filter(r => isMatchingSemester(r.semester, 'S2'));
                               const mods = Array.from(new Set(m.map(r => r.module))).sort();
                               setSetupEnrolledModules(mods);
-                              setSetupMixableModules(mods);
+                              setSetupMixableModules([]);
                             }}
                           >
                             Semester 2 ({semesterStats.s2})
