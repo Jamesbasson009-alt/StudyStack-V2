@@ -102,6 +102,13 @@ const IconShuffle = ({ size = 22 }) => (
   </svg>
 );
 
+const IconMail = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+    <polyline points="22 6 12 13 2 6"></polyline>
+  </svg>
+);
+
 const IconPrinter = ({ size = 22 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -129,6 +136,8 @@ const IconUsers = ({ size = 22 }) => (
 export function LandingPage({ onLaunchGenerator, onNavigate }) {
   const [activeFaq, setActiveFaq] = useState(null);
   const [showPortalGuide, setShowPortalGuide] = useState(false);
+  const [demoPref, setDemoPref] = useState('morning');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const NAV_OFFSET = 84; // sticky nav height plus a little breathing room
 
@@ -136,6 +145,10 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
   // browsers/OS "reduce motion" settings silently turn into an instant jump). Duration
   // scales a bit with distance so short hops and long jumps both feel natural.
   const scrollToY = (targetY, duration = 700) => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      window.scrollTo({ top: targetY, behavior: 'instant' });
+      return;
+    }
     const startY = window.pageYOffset;
     const distance = targetY - startY;
     const startTime = performance.now();
@@ -156,6 +169,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
 
   const handleNavClick = (sectionId) => (e) => {
     e.preventDefault();
+    setMenuOpen(false);
     const target = document.getElementById(sectionId);
     if (!target) return;
     const top = target.getBoundingClientRect().top + window.pageYOffset - NAV_OFFSET;
@@ -163,6 +177,11 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
     // Cap so a very long scroll doesn't drag on forever, floor so short hops still animate.
     const duration = Math.min(1100, Math.max(450, distance * 0.5));
     scrollToY(top, duration);
+  };
+
+  const openDemoFor = (id) => {
+    setDemoPref(id);
+    handleNavClick('demo')({ preventDefault() {} });
   };
 
   const faqs = [
@@ -225,13 +244,14 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
     <div className="landing-root">
       <PortalGuideModal open={showPortalGuide} onClose={() => setShowPortalGuide(false)} />
       <style>{`
-        html {
-          scroll-behavior: smooth;
-        }
-
         body {
           margin: 0;
         }
+
+        :where(.landing-root) :where(h1, h2, h3, p) { margin: 0; }
+        .landing-root button { font-family: inherit; }
+        .landing-root :focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; border-radius: 4px; }
+        .landing-root code { font-family: 'JetBrains Mono', monospace; font-size: 0.9em; background: #e2e8f0; color: #0e3868; padding: 1px 6px; border-radius: 4px; }
 
         .landing-root {
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -260,6 +280,9 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         }
 
         .landing-nav-brand {
+          background: none;
+          border: none;
+          padding: 0;
           display: flex;
           align-items: center;
           gap: 12px;
@@ -344,6 +367,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           display: inline-flex;
           align-items: center;
           gap: 8px;
+          text-align: left;
           background: #e0f2fe;
           border: 1px solid #bae6fd;
           color: #0369a1;
@@ -356,7 +380,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         }
 
         .hero-logo-showcase {
-          margin-bottom: 24px;
+          margin-bottom: 36px;
           display: flex;
           justify-content: center;
         }
@@ -379,15 +403,17 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           letter-spacing: -0.03em;
           color: #0e3868;
           max-width: 820px;
-          margin-bottom: 18px;
+          margin: 0 0 24px;
+          text-wrap: balance;
         }
 
         .hero-subhead {
           font-size: clamp(16px, 2vw, 19px);
           color: #475569;
           max-width: 680px;
-          margin-bottom: 38px;
+          margin: 0 0 44px;
           line-height: 1.6;
+          text-wrap: pretty;
         }
 
         /* Central Action Button */
@@ -395,8 +421,8 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 16px;
-          margin-bottom: 48px;
+          gap: 18px;
+          margin-bottom: 56px;
         }
 
         .hero-primary-btn {
@@ -492,6 +518,10 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         }
 
         .pref-preview-card {
+          font: inherit;
+          color: inherit;
+          text-align: left;
+          cursor: pointer;
           background: #ffffff;
           border: 1px solid #e2e8f0;
           border-radius: 10px;
@@ -525,10 +555,77 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         }
 
         .pref-desc {
-          font-size: 12px;
+          font-size: 13px;
           color: #64748b;
-          line-height: 1.4;
+          line-height: 1.45;
         }
+
+        .pref-link {
+          display: inline-block;
+          margin-top: 10px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #2563eb;
+        }
+
+        .landing-nav-menu-btn {
+          display: none;
+          background: none;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          width: 38px;
+          height: 38px;
+          align-items: center;
+          justify-content: center;
+          color: #0e3868;
+          cursor: pointer;
+        }
+
+        .landing-mobile-menu {
+          position: sticky;
+          top: 68px;
+          z-index: 49;
+          background: #ffffff;
+          border-bottom: 1px solid #e2e8f0;
+          box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+          padding: 8px clamp(16px, 4vw, 48px) 16px;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .landing-mobile-menu a, .landing-mobile-menu button {
+          background: none;
+          border: none;
+          text-align: left;
+          padding: 12px 0;
+          font-size: 15px;
+          font-weight: 600;
+          color: #0e3868;
+          text-decoration: none;
+          border-bottom: 1px solid #f1f5f9;
+          cursor: pointer;
+        }
+
+        .faq-chevron {
+          flex-shrink: 0;
+          margin-left: 12px;
+          color: #0e3868;
+          transition: transform 0.2s ease;
+        }
+        .faq-chevron.is-open { transform: rotate(180deg); }
+
+        .footer-action-btn {
+          background: transparent;
+          border: none;
+          padding: 0;
+          color: #60a5fa;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        .footer-action-btn:hover { color: #93c5fd; }
+
+        .features-panel { background: #f8fafc; border-radius: 20px; max-width: 1180px; }
 
         /* Section Container */
         .landing-section {
@@ -624,8 +721,14 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         /* Features Grid */
         .features-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          grid-template-columns: repeat(3, 1fr);
           gap: 24px;
+        }
+        @media (max-width: 960px) {
+          .features-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 620px) {
+          .features-grid { grid-template-columns: 1fr; }
         }
 
         .feature-box {
@@ -942,6 +1045,12 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           .landing-nav-links {
             display: none;
           }
+          .landing-nav-menu-btn {
+            display: inline-flex;
+          }
+          .landing-nav-cta span {
+            display: none;
+          }
           .hero-preference-grid {
             grid-template-columns: 1fr 1fr;
           }
@@ -961,16 +1070,16 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
 
       {/* Top Navbar */}
       <nav className="landing-nav">
-        <div className="landing-nav-brand" onClick={() => scrollToY(0)}>
+        <button type="button" className="landing-nav-brand" onClick={() => scrollToY(0)} aria-label="Back to top">
           <img src="/studystack-mark.png" alt="StudyStack Logo" className="landing-nav-logo" />
           <span className="landing-nav-title">StudyStack</span>
-        </div>
+        </button>
 
         <div className="landing-nav-links">
-          <a href="#how-it-works" className="landing-nav-link" onClick={handleNavClick('how-it-works')}>How it works</a>
-          <a href="#preferences" className="landing-nav-link" onClick={handleNavClick('preferences')}>Preferences</a>
-          <a href="#friends" className="landing-nav-link" onClick={handleNavClick('friends')}>Friends</a>
           <a href="#demo" className="landing-nav-link" onClick={handleNavClick('demo')}>Demo</a>
+          <a href="#how-it-works" className="landing-nav-link" onClick={handleNavClick('how-it-works')}>How it works</a>
+          <a href="#features" className="landing-nav-link" onClick={handleNavClick('features')}>Features</a>
+          <a href="#friends" className="landing-nav-link" onClick={handleNavClick('friends')}>Friends</a>
           <a href="#faq" className="landing-nav-link" onClick={handleNavClick('faq')}>FAQ</a>
           <button
             type="button"
@@ -981,6 +1090,18 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           </button>
         </div>
 
+        <button
+          type="button"
+          className="landing-nav-menu-btn"
+          aria-label="Toggle menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            {menuOpen ? (<><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></>) : (<><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></>)}
+          </svg>
+        </button>
+
         <button className="landing-nav-cta" onClick={onLaunchGenerator}>
           <span>Open Generator</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -990,11 +1111,22 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         </button>
       </nav>
 
+      {menuOpen && (
+        <div className="landing-mobile-menu">
+          <a href="#demo" onClick={handleNavClick('demo')}>Demo</a>
+          <a href="#how-it-works" onClick={handleNavClick('how-it-works')}>How it works</a>
+          <a href="#features" onClick={handleNavClick('features')}>Features</a>
+          <a href="#friends" onClick={handleNavClick('friends')}>Friends</a>
+          <a href="#faq" onClick={handleNavClick('faq')}>FAQ</a>
+          <button type="button" onClick={() => { setMenuOpen(false); onNavigate?.('books'); }}>Textbook Market</button>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="landing-hero">
         <div className="hero-pill-badge">
           <IconZap size={14} />
-          <span>Built for University of Pretoria Students • Timetables Stay Private in Your Browser</span>
+          <span>Built for UP students · Your timetable stays in your browser</span>
         </div>
 
         <div className="hero-logo-showcase">
@@ -1006,7 +1138,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         </div>
 
         <h1 className="hero-headline">
-          UP Timetable Generator: clash-free schedules in seconds
+          UP Timetable Generator: <span style={{ whiteSpace: 'nowrap' }}>clash-free</span> schedules in seconds
         </h1>
 
         <p className="hero-subhead">
@@ -1020,7 +1152,6 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           <button
             className="hero-primary-btn"
             onClick={onLaunchGenerator}
-            autoFocus
           >
             <IconZap size={18} />
             <span>Generate Your Timetable</span>
@@ -1056,37 +1187,41 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
 
         {/* 4 Schedule Optimization Preferences Preview */}
         <div id="preferences" className="hero-preference-grid">
-          <div className="pref-preview-card">
+          <button type="button" className="pref-preview-card" onClick={() => openDemoFor('morning')}>
             <div className="pref-icon-header">
               <span className="pref-icon"><IconSunrise /></span>
               <h3 className="pref-title">Morning Schedule</h3>
             </div>
             <p className="pref-desc">Prioritizes earlier classes so you finish early and free up afternoons.</p>
-          </div>
+            <span className="pref-link">See it in the demo →</span>
+          </button>
 
-          <div className="pref-preview-card">
+          <button type="button" className="pref-preview-card" onClick={() => openDemoFor('afternoon')}>
             <div className="pref-icon-header">
               <span className="pref-icon"><IconSunset /></span>
               <h3 className="pref-title">Afternoon Schedule</h3>
             </div>
             <p className="pref-desc">Schedules classes later in the day for late risers and commuters.</p>
-          </div>
+            <span className="pref-link">See it in the demo →</span>
+          </button>
 
-          <div className="pref-preview-card">
+          <button type="button" className="pref-preview-card" onClick={() => openDemoFor('freeday')}>
             <div className="pref-icon-header">
               <span className="pref-icon"><IconCalendar /></span>
               <h3 className="pref-title">Free Day Maximizer</h3>
             </div>
             <p className="pref-desc">Concentrates sessions into fewer days to unlock entire weekdays with 0 classes.</p>
-          </div>
+            <span className="pref-link">See it in the demo →</span>
+          </button>
 
-          <div className="pref-preview-card">
+          <button type="button" className="pref-preview-card" onClick={() => openDemoFor('earlyfriday')}>
             <div className="pref-icon-header">
               <span className="pref-icon"><IconFastForward /></span>
               <h3 className="pref-title">Early Friday</h3>
             </div>
             <p className="pref-desc">Finishes your Friday schedule early so your weekend starts ahead of time.</p>
-          </div>
+            <span className="pref-link">See it in the demo →</span>
+          </button>
         </div>
       </section>
 
@@ -1096,10 +1231,14 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           <span className="section-tag">Live Demo</span>
           <h2 className="section-title">See It Work</h2>
           <p className="section-desc">
-            Switch the preference or flick through options. Every schedule below is clash-free.
+            Pick a preference and flick through the options. Each one produces a genuinely different week, and every schedule is clash-free.
           </p>
         </div>
-        <TimetableDemo onLaunchGenerator={onLaunchGenerator} />
+        <TimetableDemo
+          onLaunchGenerator={onLaunchGenerator}
+          preference={demoPref}
+          onPreferenceChange={setDemoPref}
+        />
       </section>
 
       {/* How it works Section */}
@@ -1123,7 +1262,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
 
           <div className="step-card">
             <div className="step-num-pill">02</div>
-            <h3 className="step-heading">Select Modules & Vibe</h3>
+            <h3 className="step-heading">Pick Modules & Preference</h3>
             <p className="step-text">
               Pick your enrolled modules for Semester 1 or 2, and select your preferred schedule style (Morning, Afternoon, Free Day, Early Friday).
             </p>
@@ -1140,7 +1279,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="landing-section" style={{ background: '#f8fafc', borderRadius: 20, maxWidth: 1180 }}>
+      <section id="features" className="landing-section features-panel">
         <div className="section-header-center">
           <span className="section-tag">Engineered for Students</span>
           <h2 className="section-title">Everything You Need to Ace Registration</h2>
@@ -1179,14 +1318,6 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
             <h3 className="feature-title">Custom Group Overrides</h3>
             <p className="feature-desc">
               Want a specific practical group with friends? Lock individual group codes for any activity and see updated clashes live.
-            </p>
-          </div>
-
-          <div className="feature-box">
-            <div className="feature-icon-wrapper"><IconUsers /></div>
-            <h3 className="feature-title">Friends & Free Time Sharing</h3>
-            <p className="feature-desc">
-              Create a personal share link in one click. Compare weekly schedules with friends, spot mutual free lunch hours, and find shared classes.
             </p>
           </div>
 
@@ -1275,7 +1406,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           </div>
 
           <div className="step-card">
-            <div className="feature-icon-wrapper" style={{ marginBottom: 0 }}><IconShuffle /></div>
+            <div className="feature-icon-wrapper" style={{ marginBottom: 0 }}><IconMail /></div>
             <h3 className="step-heading">Request the seller's contact</h3>
             <p className="step-text">
               Found a match? Send a short request with your name and how to reach you. The seller reviews it
@@ -1320,14 +1451,19 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
             return (
               <div key={idx} className="faq-item">
                 <button
+                  type="button"
+                  id={`faq-q-${idx}`}
                   className="faq-question-btn"
                   aria-expanded={isOpen}
+                  aria-controls={`faq-a-${idx}`}
                   onClick={() => setActiveFaq(isOpen ? null : idx)}
                 >
                   <span>{faq.q}</span>
-                  <span style={{ fontSize: 18, color: '#0e3868' }}>{isOpen ? '−' : '+'}</span>
+                  <svg className={`faq-chevron${isOpen ? ' is-open' : ''}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
                 </button>
-                <div className="faq-answer" style={{ display: isOpen ? 'block' : 'none' }}>
+                <div id={`faq-a-${idx}`} role="region" aria-labelledby={`faq-q-${idx}`} className="faq-answer" hidden={!isOpen}>
                   {faq.a}
                 </div>
               </div>
@@ -1370,23 +1506,16 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
             </div>
 
             <div className="footer-links-row">
+              <a href="#demo" className="footer-link-item" onClick={handleNavClick('demo')}>Demo</a>
+              <a href="#how-it-works" className="footer-link-item" onClick={handleNavClick('how-it-works')}>How it works</a>
               <a href="#features" className="footer-link-item" onClick={handleNavClick('features')}>Features</a>
               <a href="#friends" className="footer-link-item" onClick={handleNavClick('friends')}>Friends</a>
-              <a href="#how-it-works" className="footer-link-item" onClick={handleNavClick('how-it-works')}>How it works</a>
-              <a href="#preferences" className="footer-link-item" onClick={handleNavClick('preferences')}>Preferences</a>
-              <a href="#demo" className="footer-link-item" onClick={handleNavClick('demo')}>Demo</a>
               <a href="#textbooks" className="footer-link-item" onClick={handleNavClick('textbooks')}>Textbooks</a>
               <a href="#faq" className="footer-link-item" onClick={handleNavClick('faq')}>FAQ</a>
-              <button
-                onClick={() => onNavigate?.('books')}
-                style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
-              >
+              <button type="button" className="footer-action-btn" onClick={() => onNavigate?.('books')}>
                 Browse Textbooks →
               </button>
-              <button
-                onClick={onLaunchGenerator}
-                style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
-              >
+              <button type="button" className="footer-action-btn" onClick={onLaunchGenerator}>
                 Open Generator →
               </button>
             </div>

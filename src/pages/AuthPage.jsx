@@ -5,6 +5,7 @@ import {
   STUDENT_EMAIL_DOMAIN,
   STUDENT_NUMBER_LENGTH,
   buildStudentEmail,
+  resendConfirmation,
   signIn,
   signUp,
 } from '../lib/auth.js';
@@ -33,6 +34,63 @@ const PREVIEW_BLOCKS = [
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
+// Supabase allows one email per address every 60 seconds by default; the Resend button waits that long.
+const RESEND_COOLDOWN_SECONDS = 60;
+
+// Shown after sign-up (and after "resend" from a sign-in attempt): the account exists but the
+// email hasn't been confirmed yet, so there's nothing to sign in to.
+function CheckEmailView({ email, cooldown, resending, status, onResend, onEditNumber, onSignIn }) {
+  const headingRef = useRef(null);
+
+  // Move focus to the new heading so keyboard and screen-reader users land on the change.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
+
+  const resendLabel = resending
+    ? 'Sending…'
+    : cooldown > 0
+    ? `Resend email in ${cooldown}s`
+    : 'Resend email';
+
+  return (
+    <div className="auth-sent">
+      <span className="auth-sent-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+          <polyline points="3 7 12 13 21 7"></polyline>
+        </svg>
+      </span>
+      <h1 className="auth-title" ref={headingRef} tabIndex={-1}>
+        Check your inbox
+      </h1>
+      <p className="auth-sub">
+        We sent a confirmation link to <span className="auth-sent-address">{email}</span>. Open it to
+        finish setting up your account.
+      </p>
+      <p className="auth-hint">
+        Nothing there? Check your junk folder. Mail to student inboxes can take a few minutes.
+      </p>
+
+      <button type="button" className="auth-secondary" onClick={onResend} disabled={resending || cooldown > 0}>
+        {resendLabel}
+      </button>
+      <p className="auth-status" role="status" aria-live="polite" data-kind={status?.kind}>
+        {status?.text}
+      </p>
+
+      <div className="auth-sent-links">
+        <button type="button" className="auth-link-inline" onClick={onEditNumber}>
+          Wrong student number?
+        </button>
+        <button type="button" className="auth-link-inline" onClick={onSignIn}>
+          Already confirmed? Sign in
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function describeError(err) {
   if (!(err instanceof AuthError)) {
     return { field: 'form', message: 'Something went wrong. Please try again.' };
@@ -44,6 +102,8 @@ function describeError(err) {
         message: 'An account for this email already exists.',
         action: 'signin',
       };
+    case 'unconfirmed':
+      return { field: 'form', message: err.message, action: 'resend' };
     case 'invalid_email':
       return { field: 'email', message: err.message };
     case 'weak_password':
@@ -63,6 +123,10 @@ export function AuthPage({ onAuthenticated, onBack, onNavigate }) {
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState({});
+  const [pendingEmail, setPendingEmail] = useState(null); // set once a confirmation email is on its way
+  const [cooldown, setCooldown] = useState(0);
+  const [resending, setResending] = useState(false);
+  const [resendStatus, setResendStatus] = useState(null);
 
   const numberRef = useRef(null);
   const passwordRef = useRef(null);
@@ -76,6 +140,13 @@ export function AuthPage({ onAuthenticated, onBack, onNavigate }) {
       numberRef.current?.focus();
     }
   }, []);
+
+  // Counts the resend cooldown down one second at a time.
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
 
   function switchMode(next) {
     setMode(next);
@@ -149,14 +220,75 @@ export function AuthPage({ onAuthenticated, onBack, onNavigate }) {
     setBusy(true);
     try {
       const email = buildStudentEmail(digits);
-      const session = isSignup ? await signUp(email, password) : await signIn(email, password);
-      onAuthenticated(session);
+      if (isSignup) {
+        const { session, needsConfirmation } = await signUp(email, password);
+        if (needsConfirmation) {
+          showCheckEmail(email);
+          return;
+        }
+        onAuthenticated(session);
+      } else {
+        onAuthenticated(await signIn(email, password));
+      }
     } catch (err) {
       const { field, message, action } = describeError(err);
       setErrors({ [field]: message, action });
       if (field !== 'form') focusField(field);
     } finally {
       setBusy(false);
+    }
+  }
+
+  function showCheckEmail(email) {
+    setPendingEmail(email);
+    setResendStatus(null);
+    setCooldown(RESEND_COOLDOWN_SECONDS);
+    setPassword('');
+    setConfirm('');
+    setShowPassword(false);
+    setErrors({});
+  }
+
+  function leaveCheckEmail(nextMode) {
+    setPendingEmail(null);
+    setResendStatus(null);
+    setCooldown(0);
+    switchMode(nextMode);
+  }
+
+  // "Resend email" on the check-your-inbox view.
+  async function handleResend() {
+    if (!pendingEmail || cooldown > 0 || resending) return;
+    setResending(true);
+    setResendStatus(null);
+    try {
+      await resendConfirmation(pendingEmail);
+      setResendStatus({ kind: 'ok', text: 'Sent again. It can take a minute or two to arrive.' });
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      setResendStatus({
+        kind: 'error',
+        text: err instanceof AuthError ? err.message : 'Couldn’t resend the email. Please try again.',
+      });
+    } finally {
+      setResending(false);
+    }
+  }
+
+  // Shown under a sign-in attempt on an account whose email isn't confirmed yet.
+  async function handleResendFromSignIn() {
+    if (resending) return;
+    const email = buildStudentEmail(digits);
+    setResending(true);
+    try {
+      await resendConfirmation(email);
+      showCheckEmail(email);
+    } catch (err) {
+      setErrors({
+        form: err instanceof AuthError ? err.message : 'Couldn’t resend the email. Please try again.',
+      });
+    } finally {
+      setResending(false);
     }
   }
 
@@ -497,6 +629,67 @@ export function AuthPage({ onAuthenticated, onBack, onNavigate }) {
         }
         .auth-link-inline:hover { text-decoration: underline; }
 
+        .auth-form-error .auth-link {
+          color: #991b1b;
+          text-decoration: underline;
+        }
+        .auth-form-error .auth-link:disabled { opacity: 0.6; cursor: progress; }
+
+        /* Check-your-inbox view */
+        .auth-sent-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          color: #0e3868;
+          margin-bottom: 20px;
+        }
+        .auth-sent .auth-title:focus { outline: none; }
+        .auth-sent .auth-sub { margin-bottom: 12px; }
+        .auth-sent .auth-hint { margin: 0 0 22px; }
+        .auth-sent-address {
+          font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+          font-size: 14px;
+          font-weight: 600;
+          color: #0e3868;
+          overflow-wrap: anywhere;
+        }
+        .auth-secondary {
+          width: 100%;
+          height: 46px;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          background: #ffffff;
+          color: #0e3868;
+          font: inherit;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.12s ease, border-color 0.12s ease;
+        }
+        .auth-secondary:hover:not(:disabled) { background: #f8fafc; border-color: #94a3b8; }
+        .auth-secondary:disabled { color: #64748b; cursor: default; }
+        .auth-status {
+          min-height: 20px;
+          margin: 10px 0 0;
+          font-size: 13px;
+          line-height: 1.45;
+          color: #475569;
+        }
+        .auth-status[data-kind="ok"] { color: #15803d; }
+        .auth-status[data-kind="error"] { color: #b91c1c; }
+        .auth-sent-links {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px 18px;
+          margin-top: 14px;
+          font-size: 13.5px;
+        }
+
         .auth-root button:focus-visible {
           outline: 2px solid #2563eb;
           outline-offset: 2px;
@@ -565,202 +758,221 @@ export function AuthPage({ onAuthenticated, onBack, onNavigate }) {
             <span className="auth-brand-badge">UP</span>
           </div>
 
-          <h1 className="auth-title">{isSignup ? 'Create your account' : 'Sign in to StudyStack'}</h1>
-          <p className="auth-sub">
-            {isSignup
-              ? 'Use your UP student email to set up an account. It takes a few seconds.'
-              : 'Use your UP student email to open the timetable generator.'}
-          </p>
+          {pendingEmail ? (
+            <CheckEmailView
+              email={pendingEmail}
+              cooldown={cooldown}
+              resending={resending}
+              status={resendStatus}
+              onResend={handleResend}
+              onEditNumber={() => leaveCheckEmail(mode)}
+              onSignIn={() => leaveCheckEmail('signin')}
+            />
+          ) : (
+            <>
+              <h1 className="auth-title">{isSignup ? 'Create your account' : 'Sign in to StudyStack'}</h1>
+              <p className="auth-sub">
+                {isSignup
+                  ? 'Use your UP student email to set up an account. It takes a few seconds.'
+                  : 'Use your UP student email to open the timetable generator.'}
+              </p>
 
-          <div className="auth-switch" role="group" aria-label="Sign in or create an account">
-            <button type="button" aria-pressed={!isSignup} onClick={() => switchMode('signin')}>
-              Sign in
-            </button>
-            <button type="button" aria-pressed={isSignup} onClick={() => switchMode('signup')}>
-              Create account
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} noValidate>
-            {errors.form && (
-              <div className="auth-form-error" role="alert">
-                {errors.form}
-              </div>
-            )}
-
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="auth-student-number">
-                Student email
-              </label>
-              <div className="auth-input-wrap" data-invalid={Boolean(errors.email)}>
-                <span className="auth-affix auth-affix-lead" aria-hidden="true">u</span>
-                <input
-                  id="auth-student-number"
-                  ref={numberRef}
-                  className="auth-input auth-input-mono"
-                  type="text"
-                  name="username"
-                  inputMode="numeric"
-                  autoComplete="username"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  placeholder="12345678"
-                  value={digits}
-                  onChange={handleNumberChange}
-                  aria-invalid={Boolean(errors.email)}
-                  aria-describedby={errors.email ? 'auth-email-error' : 'auth-email-hint'}
-                />
-                <span className="auth-affix auth-affix-trail" aria-hidden="true">@{STUDENT_EMAIL_DOMAIN}</span>
-              </div>
-              {errors.email ? (
-                <p id="auth-email-error" className="auth-error" role="alert">
-                  {errors.email}
-                  {errors.action === 'signin' && (
-                    <button type="button" className="auth-link" onClick={() => switchMode('signin')}>
-                      Sign in instead
-                    </button>
-                  )}
-                  {errors.action === 'signup' && (
-                    <button type="button" className="auth-link" onClick={() => switchMode('signup')}>
-                      Create an account
-                    </button>
-                  )}
-                </p>
-              ) : (
-                <p id="auth-email-hint" className="auth-hint">
-                  Enter your 8 digit student number.
-                </p>
-              )}
-            </div>
-
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="auth-password">
-                Password
-              </label>
-              <div className="auth-input-wrap" data-invalid={Boolean(errors.password)}>
-                <input
-                  id="auth-password"
-                  ref={passwordRef}
-                  className="auth-input"
-                  type={passwordType}
-                  name="password"
-                  autoComplete={isSignup ? 'new-password' : 'current-password'}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setErrors((prev) => ({ ...prev, password: undefined, form: undefined }));
-                  }}
-                  aria-invalid={Boolean(errors.password)}
-                  aria-describedby={errors.password ? 'auth-password-error' : isSignup ? 'auth-password-hint' : undefined}
-                />
-                <button
-                  type="button"
-                  className="auth-toggle"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-pressed={showPassword}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? 'Hide' : 'Show'}
+              <div className="auth-switch" role="group" aria-label="Sign in or create an account">
+                <button type="button" aria-pressed={!isSignup} onClick={() => switchMode('signin')}>
+                  Sign in
+                </button>
+                <button type="button" aria-pressed={isSignup} onClick={() => switchMode('signup')}>
+                  Create account
                 </button>
               </div>
-              {errors.password ? (
-                <p id="auth-password-error" className="auth-error" role="alert">
-                  {errors.password}
-                </p>
-              ) : (
-                isSignup && (
-                  <p id="auth-password-hint" className="auth-hint">
-                    At least {MIN_PASSWORD_LENGTH} characters.
-                  </p>
-                )
-              )}
-            </div>
 
-            {isSignup && (
-              <div className="auth-field">
-                <label className="auth-label" htmlFor="auth-confirm">
-                  Confirm password
-                </label>
-                <div className="auth-input-wrap" data-invalid={Boolean(errors.confirm)}>
-                  <input
-                    id="auth-confirm"
-                    ref={confirmRef}
-                    className="auth-input"
-                    type={passwordType}
-                    name="confirm-password"
-                    autoComplete="new-password"
-                    value={confirm}
-                    onChange={(e) => {
-                      setConfirm(e.target.value);
-                      setErrors((prev) => ({ ...prev, confirm: undefined }));
-                    }}
-                    aria-invalid={Boolean(errors.confirm)}
-                    aria-describedby={errors.confirm ? 'auth-confirm-error' : undefined}
-                  />
+              <form onSubmit={handleSubmit} noValidate>
+                {errors.form && (
+                  <div className="auth-form-error" role="alert">
+                    {errors.form}
+                    {errors.action === 'resend' && (
+                      <button type="button" className="auth-link" onClick={handleResendFromSignIn} disabled={resending}>
+                        {resending ? 'Sending…' : 'Resend the email'}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="auth-field">
+                  <label className="auth-label" htmlFor="auth-student-number">
+                    Student email
+                  </label>
+                  <div className="auth-input-wrap" data-invalid={Boolean(errors.email)}>
+                    <span className="auth-affix auth-affix-lead" aria-hidden="true">u</span>
+                    <input
+                      id="auth-student-number"
+                      ref={numberRef}
+                      className="auth-input auth-input-mono"
+                      type="text"
+                      name="username"
+                      inputMode="numeric"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      placeholder="12345678"
+                      value={digits}
+                      onChange={handleNumberChange}
+                      aria-invalid={Boolean(errors.email)}
+                      aria-describedby={errors.email ? 'auth-email-error' : 'auth-email-hint'}
+                    />
+                    <span className="auth-affix auth-affix-trail" aria-hidden="true">@{STUDENT_EMAIL_DOMAIN}</span>
+                  </div>
+                  {errors.email ? (
+                    <p id="auth-email-error" className="auth-error" role="alert">
+                      {errors.email}
+                      {errors.action === 'signin' && (
+                        <button type="button" className="auth-link" onClick={() => switchMode('signin')}>
+                          Sign in instead
+                        </button>
+                      )}
+                      {errors.action === 'signup' && (
+                        <button type="button" className="auth-link" onClick={() => switchMode('signup')}>
+                          Create an account
+                        </button>
+                      )}
+                    </p>
+                  ) : (
+                    <p id="auth-email-hint" className="auth-hint">
+                      Enter your 8 digit student number.
+                    </p>
+                  )}
                 </div>
-                {errors.confirm && (
-                  <p id="auth-confirm-error" className="auth-error" role="alert">
-                    {errors.confirm}
-                  </p>
+
+                <div className="auth-field">
+                  <label className="auth-label" htmlFor="auth-password">
+                    Password
+                  </label>
+                  <div className="auth-input-wrap" data-invalid={Boolean(errors.password)}>
+                    <input
+                      id="auth-password"
+                      ref={passwordRef}
+                      className="auth-input"
+                      type={passwordType}
+                      name="password"
+                      autoComplete={isSignup ? 'new-password' : 'current-password'}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setErrors((prev) => ({ ...prev, password: undefined, form: undefined }));
+                      }}
+                      aria-invalid={Boolean(errors.password)}
+                      aria-describedby={errors.password ? 'auth-password-error' : isSignup ? 'auth-password-hint' : undefined}
+                    />
+                    <button
+                      type="button"
+                      className="auth-toggle"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-pressed={showPassword}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  {errors.password ? (
+                    <p id="auth-password-error" className="auth-error" role="alert">
+                      {errors.password}
+                    </p>
+                  ) : (
+                    isSignup && (
+                      <p id="auth-password-hint" className="auth-hint">
+                        At least {MIN_PASSWORD_LENGTH} characters.
+                      </p>
+                    )
+                  )}
+                </div>
+
+                {isSignup && (
+                  <div className="auth-field">
+                    <label className="auth-label" htmlFor="auth-confirm">
+                      Confirm password
+                    </label>
+                    <div className="auth-input-wrap" data-invalid={Boolean(errors.confirm)}>
+                      <input
+                        id="auth-confirm"
+                        ref={confirmRef}
+                        className="auth-input"
+                        type={passwordType}
+                        name="confirm-password"
+                        autoComplete="new-password"
+                        value={confirm}
+                        onChange={(e) => {
+                          setConfirm(e.target.value);
+                          setErrors((prev) => ({ ...prev, confirm: undefined }));
+                        }}
+                        aria-invalid={Boolean(errors.confirm)}
+                        aria-describedby={errors.confirm ? 'auth-confirm-error' : undefined}
+                      />
+                    </div>
+                    {errors.confirm && (
+                      <p id="auth-confirm-error" className="auth-error" role="alert">
+                        {errors.confirm}
+                      </p>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
 
-            {isSignup && (
-              <div className="auth-consent-field">
-                <label className="auth-consent-label" htmlFor="auth-agree">
-                  <input
-                    id="auth-agree"
-                    type="checkbox"
-                    checked={agreed}
-                    onChange={(e) => {
-                      setAgreed(e.target.checked);
-                      setErrors((prev) => ({ ...prev, agree: undefined }));
-                    }}
-                    aria-invalid={Boolean(errors.agree)}
-                    aria-describedby={errors.agree ? 'auth-agree-error' : undefined}
-                  />
-                  <span>
-                    I agree to StudyStack's{' '}
-                    <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('terms')}>
-                      Terms of Service
-                    </button>{' '}
-                    and{' '}
-                    <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('privacy')}>
-                      Privacy Policy
-                    </button>.
-                  </span>
-                </label>
-                {errors.agree && (
-                  <p id="auth-agree-error" className="auth-error" role="alert">
-                    {errors.agree}
-                  </p>
+                {isSignup && (
+                  <div className="auth-consent-field">
+                    <label className="auth-consent-label" htmlFor="auth-agree">
+                      <input
+                        id="auth-agree"
+                        type="checkbox"
+                        checked={agreed}
+                        onChange={(e) => {
+                          setAgreed(e.target.checked);
+                          setErrors((prev) => ({ ...prev, agree: undefined }));
+                        }}
+                        aria-invalid={Boolean(errors.agree)}
+                        aria-describedby={errors.agree ? 'auth-agree-error' : undefined}
+                      />
+                      <span>
+                        I agree to StudyStack's{' '}
+                        <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('terms')}>
+                          Terms of Service
+                        </button>{' '}
+                        and{' '}
+                        <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('privacy')}>
+                          Privacy Policy
+                        </button>.
+                      </span>
+                    </label>
+                    {errors.agree && (
+                      <p id="auth-agree-error" className="auth-error" role="alert">
+                        {errors.agree}
+                      </p>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
 
-            <button type="submit" className="auth-submit" disabled={busy}>
-              {busy
-                ? isSignup
-                  ? 'Creating account…'
-                  : 'Signing in…'
-                : isSignup
-                ? 'Create account'
-                : 'Sign in'}
-            </button>
-          </form>
+                <button type="submit" className="auth-submit" disabled={busy}>
+                  {busy
+                    ? isSignup
+                      ? 'Creating account…'
+                      : 'Signing in…'
+                    : isSignup
+                    ? 'Create account'
+                    : 'Sign in'}
+                </button>
+              </form>
 
-          {!isSignup && (
-            <p className="auth-note">
-              By signing in, you agree to StudyStack's{' '}
-              <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('terms')}>
-                Terms of Service
-              </button>{' '}
-              and{' '}
-              <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('privacy')}>
-                Privacy Policy
-              </button>.
-            </p>
+              {!isSignup && (
+                <p className="auth-note">
+                  By signing in, you agree to StudyStack's{' '}
+                  <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('terms')}>
+                    Terms of Service
+                  </button>{' '}
+                  and{' '}
+                  <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('privacy')}>
+                    Privacy Policy
+                  </button>.
+                </p>
+              )}
+            </>
           )}
         </div>
       </main>
