@@ -652,8 +652,9 @@ function App() {
       const semMatching = data.records.filter(r => isMatchingSemester(r.semester, detectedSem));
       const detectedMods = Array.from(new Set(semMatching.map(r => r.module))).sort();
       setSetupEnrolledModules(detectedMods);
-      setSetupMixableModules(detectedMods);
-      setMixableModules(detectedMods);
+      // Mixing lecture groups is opt-in: nothing is selected until the student chooses modules.
+      setSetupMixableModules([]);
+      setMixableModules([]);
     } catch (e) {
       console.error('Client-side PDF parse error:', e);
       setUploadError('Error parsing PDF: ' + (e.message || 'unknown error'));
@@ -2461,7 +2462,7 @@ function App() {
                               const m = records.filter(r => isMatchingSemester(r.semester, 'S1'));
                               const mods = Array.from(new Set(m.map(r => r.module))).sort();
                               setSetupEnrolledModules(mods);
-                              setSetupMixableModules(mods);
+                              setSetupMixableModules([]);
                             }}
                           >
                             <strong style={{ fontSize: 12 }}>Semester 1</strong>
@@ -2477,7 +2478,7 @@ function App() {
                               const m = records.filter(r => isMatchingSemester(r.semester, 'S2'));
                               const mods = Array.from(new Set(m.map(r => r.module))).sort();
                               setSetupEnrolledModules(mods);
-                              setSetupMixableModules(mods);
+                              setSetupMixableModules([]);
                             }}
                           >
                             <strong style={{ fontSize: 12 }}>Semester 2</strong>
