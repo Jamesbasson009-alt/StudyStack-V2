@@ -1,6 +1,25 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { groupIntoRows, parseRows, buildCsv } from './pdfTableParser.js';
 
+// Safari on iOS before 17.4 can't loop over a ReadableStream with `for await`, which PDF.js uses
+// to read page text. Without this, parsing fails on phones with "undefined is not a function
+// (near '...value of readableStream...')".
+if (typeof ReadableStream !== 'undefined' && !ReadableStream.prototype[Symbol.asyncIterator]) {
+  ReadableStream.prototype[Symbol.asyncIterator] = async function* () {
+    const reader = this.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) return;
+        yield value;
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  };
+  ReadableStream.prototype.values = ReadableStream.prototype[Symbol.asyncIterator];
+}
+
 // Configure worker for browser environment
 if (typeof window !== 'undefined') {
   try {
