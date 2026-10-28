@@ -307,6 +307,8 @@ export function AuthPage({ onAuthenticated, onBack, onNavigate }) {
           inset: 0;
           overflow-y: auto;
           overflow-x: hidden;
+          -webkit-overflow-scrolling: touch;
+          -webkit-text-size-adjust: 100%;
           display: grid;
           grid-template-columns: minmax(340px, 5fr) 6fr;
         }
@@ -696,6 +698,8 @@ export function AuthPage({ onAuthenticated, onBack, onNavigate }) {
         }
 
         @media (max-width: 900px) {
+          .auth-input-mono { font-size: 16px; } /* iOS zooms into fields under 16px */
+          .auth-back { min-height: 44px; }
           .auth-root { grid-template-columns: 1fr; }
           .auth-aside { display: none; }
           .auth-brand-mobile { display: flex; }

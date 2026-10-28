@@ -360,9 +360,14 @@ export function LegalPage({ page, onNavigate }) {
           color: #0f172a;
           background: #f8fafc;
           min-height: 100vh;
+          min-height: 100dvh;
           display: flex;
           flex-direction: column;
+          overflow-x: hidden;
+          -webkit-text-size-adjust: 100%;
         }
+        .legal-root, .legal-root *, .legal-root *::before, .legal-root *::after { box-sizing: border-box; }
+        .legal-doc { overflow-wrap: anywhere; }
 
         .legal-topbar {
           display: flex;
@@ -522,6 +527,9 @@ export function LegalPage({ page, onNavigate }) {
 
         @media (max-width: 640px) {
           .legal-doc h1 { font-size: 24px; }
+          .legal-topbar { position: static; padding: 10px 16px; }
+          .legal-back { min-height: 44px; }
+          .legal-shell { padding-top: 24px; padding-bottom: 48px; }
         }
       `}</style>
 

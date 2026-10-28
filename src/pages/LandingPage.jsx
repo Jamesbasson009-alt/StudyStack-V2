@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PortalGuideModal } from '../components/PortalGuideModal.jsx';
 import { TimetableDemo } from '../components/TimetableDemo.jsx';
 
@@ -139,6 +139,19 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
   const [demoPref, setDemoPref] = useState('morning');
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Close the mobile menu on Escape, or if the window grows past the mobile breakpoint.
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
+    const onResize = () => { if (window.innerWidth > 768) setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [menuOpen]);
+
   const NAV_OFFSET = 84; // sticky nav height plus a little breathing room
 
   // Custom eased scroll, independent of the browser's native smooth-scroll (which some
@@ -248,6 +261,16 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           margin: 0;
         }
 
+        /* Without border-box, width:100% plus padding makes sections wider than the screen on
+           phones, which pushes centred text off to the right. */
+        .landing-root,
+        .landing-root *,
+        .landing-root *::before,
+        .landing-root *::after { box-sizing: border-box; }
+        .landing-root { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+        .landing-root button, .landing-root a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        .landing-root img { max-width: 100%; }
+
         :where(.landing-root) :where(h1, h2, h3, p) { margin: 0; }
         .landing-root button { font-family: inherit; }
         .landing-root :focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; border-radius: 4px; }
@@ -258,6 +281,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           color: #0f172a;
           background: #ffffff;
           min-height: 100vh;
+          min-height: 100dvh;
           display: flex;
           flex-direction: column;
           line-height: 1.6;
@@ -270,12 +294,14 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           top: 0;
           z-index: 50;
           background: rgba(255, 255, 255, 0.92);
+          -webkit-backdrop-filter: blur(10px);
           backdrop-filter: blur(10px);
           border-bottom: 1px solid #e2e8f0;
           height: 68px;
           display: flex;
           align-items: center;
           justify-content: space-between;
+          gap: 12px;
           padding: 0 clamp(16px, 4vw, 48px);
         }
 
@@ -297,11 +323,20 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         }
 
         .landing-nav-title {
+          white-space: nowrap;
           font-size: 18px;
           font-weight: 800;
           color: #0e3868;
           letter-spacing: -0.02em;
         }
+
+        .landing-nav-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+        }
+        .landing-nav-cta-short { display: none; }
 
         .landing-nav-links {
           display: flex;
@@ -376,17 +411,21 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           padding: 6px 14px;
           border-radius: 9999px;
           margin-bottom: 28px;
+          max-width: 100%;
+          line-height: 1.4;
           box-shadow: 0 1px 3px rgba(3, 105, 161, 0.08);
         }
+        .hero-pill-badge svg { flex-shrink: 0; }
 
         .hero-logo-showcase {
           margin-bottom: 36px;
           display: flex;
           justify-content: center;
+          max-width: 100%;
         }
 
         .hero-main-logo {
-          max-width: 320px;
+          max-width: min(320px, 100%);
           height: auto;
           filter: drop-shadow(0 10px 25px rgba(14, 56, 104, 0.12));
           transition: transform 0.3s ease;
@@ -508,7 +547,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         /* Feature Cards (Preferences) */
         .hero-preference-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
           gap: 16px;
           max-width: 960px;
           width: 100%;
@@ -573,27 +612,46 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           background: none;
           border: 1px solid #cbd5e1;
           border-radius: 8px;
-          width: 38px;
-          height: 38px;
+          width: 44px;
+          height: 44px;
+          flex-shrink: 0;
           align-items: center;
           justify-content: center;
           color: #0e3868;
           cursor: pointer;
         }
 
+        /* Overlays the page instead of pushing it down. */
         .landing-mobile-menu {
-          position: sticky;
+          position: fixed;
           top: 68px;
+          left: 0;
+          right: 0;
           z-index: 49;
+          max-height: calc(100vh - 68px);
+          max-height: calc(100dvh - 68px);
+          overflow-y: auto;
+          overscroll-behavior: contain;
           background: #ffffff;
           border-bottom: 1px solid #e2e8f0;
-          box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
-          padding: 8px clamp(16px, 4vw, 48px) 16px;
+          box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+          padding: 4px clamp(16px, 4vw, 48px) 12px;
           display: flex;
           flex-direction: column;
         }
+        .landing-menu-backdrop {
+          position: fixed;
+          inset: 68px 0 0 0;
+          z-index: 48;
+          background: rgba(15, 23, 42, 0.35);
+        }
+        .landing-mobile-menu a:last-child, .landing-mobile-menu button:last-child { border-bottom: none; }
 
         .landing-mobile-menu a, .landing-mobile-menu button {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          min-height: 48px;
           background: none;
           border: none;
           text-align: left;
@@ -670,7 +728,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         /* Steps Row */
         .steps-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
           gap: 28px;
         }
 
@@ -712,6 +770,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           color: #0f172a;
         }
 
+        .step-text, .feature-desc, .faq-answer { overflow-wrap: anywhere; }
         .step-text {
           font-size: 14px;
           color: #64748b;
@@ -917,6 +976,8 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           color: #0f172a;
           text-align: left;
           cursor: pointer;
+          min-height: 48px;
+          gap: 12px;
         }
 
         .faq-question-btn:hover {
@@ -1041,37 +1102,86 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           color: #64748b;
         }
 
+        @media (min-width: 769px) {
+          .landing-mobile-menu, .landing-menu-backdrop { display: none; }
+        }
+
         @media (max-width: 768px) {
-          .landing-nav-links {
-            display: none;
+          .landing-nav-links { display: none; }
+          .landing-nav-menu-btn { display: inline-flex; }
+          .landing-nav-cta { min-height: 44px; padding: 8px 14px; }
+          .landing-nav-cta-full { display: none; }
+          .landing-nav-cta-short { display: inline; }
+
+          .landing-hero { padding: 36px 20px 56px; }
+          .hero-pill-badge {
+            justify-content: center;
+            text-align: center;
+            border-radius: 14px;
+            padding: 8px 14px;
+            margin-bottom: 22px;
           }
-          .landing-nav-menu-btn {
-            display: inline-flex;
-          }
-          .landing-nav-cta span {
-            display: none;
-          }
-          .hero-preference-grid {
-            grid-template-columns: 1fr 1fr;
-          }
-          .hero-primary-btn {
-            width: 100%;
-            padding: 16px 24px;
-            font-size: 16px;
-          }
+          .hero-logo-showcase { margin-bottom: 24px; }
+          .hero-main-logo { max-width: min(260px, 100%); }
+          .hero-headline { margin-bottom: 18px; }
+          .hero-subhead { margin-bottom: 32px; }
+          .hero-cta-box { width: 100%; max-width: 420px; margin-bottom: 40px; }
+          .hero-primary-btn { width: 100%; padding: 16px 20px; font-size: 16px; }
+          .hero-secondary-btn { width: 100%; min-height: 48px; }
+          .hero-trust-row { flex-direction: column; gap: 8px; }
+          .hero-trust-dot { display: none; }
+          .hero-preference-grid { grid-template-columns: 1fr 1fr; }
+
+          .landing-section { padding: 56px 20px; }
+          .section-header-center { margin-bottom: 36px; }
+          .features-panel { border-radius: 0; }
+          .step-card { padding: 24px 20px; }
+          .feature-box { padding: 22px 20px; }
+
+          .market-cta-row { width: 100%; }
+          .market-cta-btn { width: 100%; max-width: 360px; justify-content: center; min-height: 48px; }
+          .faq-question-btn { padding: 14px 16px; }
+          .faq-answer { padding: 0 16px 16px; }
+
+          .banner-cta-container { padding: 56px 20px; }
+          .banner-btn-row { flex-direction: column; width: 100%; max-width: 360px; }
+          .banner-btn { width: 100%; justify-content: center; min-height: 48px; }
+
+          .landing-footer { padding-top: 40px; }
+          .footer-top-row { flex-direction: column; }
+          .footer-links-row { gap: 14px 24px; }
+          .footer-link-item, .footer-action-btn { padding: 4px 0; }
+          .footer-disclaimer-card { flex-direction: column; align-items: flex-start; }
         }
 
         @media (max-width: 520px) {
-          .hero-preference-grid {
-            grid-template-columns: 1fr;
-          }
+          .hero-preference-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 380px) {
+          .landing-nav { gap: 8px; }
+          .landing-nav-logo { height: 32px; }
+          .landing-nav-title { font-size: 16px; }
+          .landing-nav-cta svg { display: none; }
+          .hero-primary-btn { font-size: 15px; padding: 15px 16px; gap: 8px; }
+          .hero-btn-arrow { display: none; }
+        }
+
+        /* Hover lifts get "stuck" after a tap on touch screens. */
+        @media (hover: none) {
+          .pref-preview-card:hover, .feature-box:hover, .hero-primary-btn:hover,
+          .landing-nav-cta:hover, .banner-btn:hover { transform: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .landing-root *, .landing-root *::before, .landing-root *::after { transition: none !important; }
         }
       `}</style>
 
       {/* Top Navbar */}
       <nav className="landing-nav">
         <button type="button" className="landing-nav-brand" onClick={() => scrollToY(0)} aria-label="Back to top">
-          <img src="/studystack-mark.png" alt="StudyStack Logo" className="landing-nav-logo" />
+          <img src="/studystack-mark.png" alt="" className="landing-nav-logo" />
           <span className="landing-nav-title">StudyStack</span>
         </button>
 
@@ -1090,29 +1200,34 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           </button>
         </div>
 
-        <button
-          type="button"
-          className="landing-nav-menu-btn"
-          aria-label="Toggle menu"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((o) => !o)}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            {menuOpen ? (<><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></>) : (<><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></>)}
-          </svg>
-        </button>
+        <div className="landing-nav-actions">
+          <button className="landing-nav-cta" onClick={onLaunchGenerator}>
+            <span className="landing-nav-cta-full">Open Generator</span>
+            <span className="landing-nav-cta-short">Generate</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
 
-        <button className="landing-nav-cta" onClick={onLaunchGenerator}>
-          <span>Open Generator</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-            <polyline points="12 5 19 12 12 19"></polyline>
-          </svg>
-        </button>
+          <button
+            type="button"
+            className="landing-nav-menu-btn"
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            aria-controls="landing-mobile-menu"
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+              {menuOpen ? (<><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></>) : (<><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></>)}
+            </svg>
+          </button>
+        </div>
       </nav>
 
+      {menuOpen && <div className="landing-menu-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
       {menuOpen && (
-        <div className="landing-mobile-menu">
+        <div className="landing-mobile-menu" id="landing-mobile-menu">
           <a href="#demo" onClick={handleNavClick('demo')}>Demo</a>
           <a href="#how-it-works" onClick={handleNavClick('how-it-works')}>How it works</a>
           <a href="#features" onClick={handleNavClick('features')}>Features</a>
@@ -1132,6 +1247,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         <div className="hero-logo-showcase">
           <img
             src="/studystack-logo-cropped.png"
+            decoding="async"
             alt="StudyStack – UP timetable generator logo"
             className="hero-main-logo"
           />
@@ -1474,7 +1590,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
 
       {/* Call to action Banner */}
       <div className="banner-cta-container">
-        <img src="/studystack-mark.png" alt="StudyStack Emblem" className="banner-logo-mark" />
+        <img src="/studystack-mark.png" alt="" className="banner-logo-mark" loading="lazy" decoding="async" />
         <h2 className="banner-headline">Ready to generate your conflict-free timetable?</h2>
         <p className="banner-subhead">
           Join UP students who build their class schedules in seconds, then find the textbooks to match.
@@ -1497,7 +1613,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           <div className="footer-top-row">
             <div className="footer-brand-block">
               <div className="footer-logo-row">
-                <img src="/studystack-mark.png" alt="StudyStack" className="footer-logo-img" />
+                <img src="/studystack-mark.png" alt="" className="footer-logo-img" loading="lazy" decoding="async" />
                 <span className="footer-brand-title">StudyStack</span>
               </div>
               <p className="footer-brand-desc">

@@ -7,9 +7,30 @@ import { parsePdf } from './pdfParser.js';
 import { LandingPage } from './LandingPage.jsx';
 import { AuthPage } from './pages/AuthPage.jsx';
 import { EmailConfirmedPage } from './pages/EmailConfirmedPage.jsx';
+import { BooksPage } from './pages/BooksPage.jsx';
+import { LegalPage } from './pages/LegalPage.jsx';
 import { clearAuthLanding, getAuthLanding, getSession, onSessionChange } from './lib/auth.js';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+// URL hash <-> view. The landing page, textbook market and legal pages all navigate by view name.
+const HASH_TO_VIEW = {
+  '': 'landing',
+  '#landing': 'landing',
+  '#generator': 'generator',
+  '#signin': 'auth',
+  '#books': 'books',
+  '#terms': 'terms',
+  '#privacy': 'privacy',
+};
+const VIEW_TO_HASH = {
+  landing: '#landing',
+  generator: '#generator',
+  auth: '#signin',
+  books: '#books',
+  terms: '#terms',
+  privacy: '#privacy',
+};
 const DAY_MAP = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri' };
 const PERIODS = ['07:30', '08:30', '09:30', '10:30', '11:30', '12:30', '13:30', '14:30', '15:30', '16:30', '17:30'];
 
@@ -248,11 +269,8 @@ const Icons = {
 
 function App() {
   const [currentView, setCurrentView] = useState(() => {
-    if (typeof window !== 'undefined' && window.location.hash === '#generator') {
-      return 'generator';
-    }
-    if (typeof window !== 'undefined' && window.location.hash === '#signin') {
-      return 'auth';
+    if (typeof window !== 'undefined') {
+      return HASH_TO_VIEW[window.location.hash] || 'landing';
     }
     return 'landing';
   });
@@ -260,22 +278,15 @@ function App() {
   const navigateTo = (view) => {
     setCurrentView(view);
     if (typeof window !== 'undefined') {
-      const hashFor = { generator: '#generator', auth: '#signin' };
-      window.location.hash = hashFor[view] || '#landing';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.location.hash = VIEW_TO_HASH[view] || '#landing';
+      window.scrollTo({ top: 0, behavior: 'auto' });
     }
   };
 
   useEffect(() => {
     const handleHash = () => {
-      const hash = window.location.hash;
-      if (hash === '#generator') {
-        setCurrentView('generator');
-      } else if (hash === '#signin') {
-        setCurrentView('auth');
-      } else if (hash === '#landing' || hash === '') {
-        setCurrentView('landing');
-      }
+      const next = HASH_TO_VIEW[window.location.hash];
+      if (next) setCurrentView(next);
     };
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
@@ -684,11 +695,22 @@ function App() {
     if (!gridRef.current) return;
     setIsExporting(true);
     try {
-      const canvas = await html2canvas(gridRef.current, {
-        scale: 2,
+      const el = gridRef.current;
+      const fullWidth = el.scrollWidth;
+      const fullHeight = el.scrollHeight;
+      const canvas = await html2canvas(el, {
+        scale: window.innerWidth < 700 ? 1.5 : 2, // keeps phones from running out of canvas memory
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
+        width: fullWidth,
+        height: fullHeight,
+        windowWidth: Math.max(fullWidth, window.innerWidth),
+        onclone: (_doc, node) => {
+          // On narrow screens the board scrolls sideways; un-clip it so the export has every day.
+          node.style.overflow = 'visible';
+          node.style.width = `${fullWidth}px`;
+        },
       });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
@@ -747,6 +769,14 @@ function App() {
     );
   }
 
+  // Public pages: they don't need to wait for the stored session.
+  if (currentView === 'books') {
+    return <BooksPage session={session} authChecked={authReady} onNavigate={navigateTo} />;
+  }
+  if (currentView === 'terms' || currentView === 'privacy') {
+    return <LegalPage page={currentView} onNavigate={navigateTo} />;
+  }
+
   // Wait for the stored session to load so a signed-in person never sees a flash of the sign-in form.
   if (!authReady && currentView !== 'landing') return null;
 
@@ -767,6 +797,7 @@ function App() {
     return (
       <LandingPage
         onLaunchGenerator={() => navigateTo(session ? 'generator' : 'auth')}
+        onNavigate={navigateTo}
       />
     );
   }
@@ -816,6 +847,7 @@ function App() {
           display: flex;
           flex-direction: column;
           min-height: 100vh;
+          min-height: 100dvh;
         }
 
         /* Top Header Bar */
@@ -1010,6 +1042,7 @@ function App() {
           grid-template-columns: 320px 1fr;
           flex: 1;
           min-height: calc(100vh - 58px);
+          min-height: calc(100dvh - 58px);
         }
 
         .sidebar-rail {
@@ -1019,6 +1052,7 @@ function App() {
           flex-direction: column;
           overflow-y: auto;
           max-height: calc(100vh - 58px);
+          max-height: calc(100dvh - 58px);
         }
 
         .sidebar-section {
@@ -1465,7 +1499,9 @@ function App() {
           background: var(--bg-surface);
           border: 1px solid var(--border-color);
           border-radius: 6px;
-          overflow: hidden;
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
         }
 
         .timetable-grid {
@@ -1488,6 +1524,12 @@ function App() {
           text-align: center;
         }
 
+        /* Keep the time column and header in view while the days scroll sideways. */
+        .time-col-cell, .timetable-grid > .grid-header-cell:first-child {
+          position: sticky;
+          left: 0;
+          z-index: 3;
+        }
         .time-col-cell {
           font-family: var(--font-mono);
           font-size: 12px;
@@ -1858,14 +1900,72 @@ function App() {
         @media (max-width: 860px) {
           .workspace-grid {
             grid-template-columns: 1fr;
+            min-height: 0;
           }
           .sidebar-rail {
             border-right: none;
             border-bottom: 1px solid var(--border-color);
+            max-height: none;
+            overflow-y: visible;
+          }
+          /* Once a timetable exists, show it first and the module controls underneath. */
+          .workspace-grid.has-timetable .main-canvas { order: -1; }
+          .workspace-grid.has-timetable .sidebar-rail {
+            border-bottom: none;
+            border-top: 1px solid var(--border-color);
           }
           .setup-steps-grid {
             grid-template-columns: 1fr;
           }
+
+          /* Header: brand, then tabs, then actions, each row scrolling sideways if it must. */
+          .header-bar {
+            height: auto;
+            min-height: 52px;
+            flex-wrap: wrap;
+            gap: 6px 8px;
+            padding: 8px 12px;
+            position: static;
+          }
+          .header-tabs, .header-actions {
+            flex: 1 1 100%;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+          }
+          .header-tabs::-webkit-scrollbar, .header-actions::-webkit-scrollbar { display: none; }
+          .header-tabs > *, .header-actions > * { flex-shrink: 0; }
+          .tab-item { min-height: 40px; white-space: nowrap; }
+          .segmented-btn { min-height: 34px; white-space: nowrap; }
+          .btn { min-height: 38px; }
+
+          .canvas-toolbar { padding: 10px 12px; }
+          .timetable-container { padding: 12px; }
+          .table-view-container { padding: 12px; }
+          .data-table-wrap { max-height: none; }
+          .setup-workflow-card { padding: 20px 16px; margin: 12px; }
+
+          /* 16px stops iOS Safari zooming the page when a field gets focus. */
+          .table-search-input, .group-select { font-size: 16px; }
+        }
+
+        @media (max-width: 640px) {
+          .timetable-grid { grid-template-columns: 52px repeat(5, minmax(132px, 1fr)); }
+          .time-col-cell { padding: 10px 4px; font-size: 11px; }
+          .setup-options-grid-2 { grid-template-columns: 1fr; }
+
+          /* Class details open as a bottom sheet instead of a floating card. */
+          .inspector-overlay { align-items: flex-end; padding: 0; }
+          .inspector-panel {
+            width: 100%;
+            max-height: 85vh;
+            max-height: 85dvh;
+            overflow-y: auto;
+            border-radius: 14px 14px 0 0;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+          }
+          .inspector-close-btn { padding: 10px; }
+          .inspector-grid { grid-template-columns: 96px 1fr; }
         }
       `}</style>
 
@@ -1985,7 +2085,7 @@ function App() {
       </header>
 
       {activeTab === 'grid' ? (
-        <div className="workspace-grid">
+        <div className={`workspace-grid${records.length > 0 && selectedSemester ? ' has-timetable' : ''}`}>
           {/* Left Control Rail */}
           <aside className="sidebar-rail">
             <div className="sidebar-section">
