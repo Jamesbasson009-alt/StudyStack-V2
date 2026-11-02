@@ -12,7 +12,7 @@ import { LegalPage } from './pages/LegalPage.jsx';
 import { clearAuthLanding, getAuthLanding, getSession, onSessionChange, signOut } from './lib/auth.js';
 import { loadTimetable, saveTimetable } from './lib/timetableStore.js';
 import { DAYS, PERIODS, MODULE_THEMES, recordsToEvents } from './lib/timetableEvents.js';
-import { useHashRoute } from './hooks/useHashRoute.js';
+import { useHashRoute } from './lib/useHashRoute.js';
 import { Icons } from './components/Icons.jsx';
 import { EventInspector } from './components/EventInspector.jsx';
 import { GeneratingOverlay } from './components/GeneratingOverlay.jsx';
@@ -1994,8 +1994,8 @@ function App() {
                   {uploadState === 'processing'
                     ? 'Extracting schedule entries…'
                     : uploadState === 'done'
-                    ? 'Replace PDF file'
-                    : 'Upload UP module PDF'}
+                      ? 'Replace PDF file'
+                      : 'Upload UP module PDF'}
                 </div>
                 <div className="dropzone-hint">UP_MOD_XLS*.pdf</div>
               </div>
@@ -2031,12 +2031,12 @@ function App() {
                         {totalClashes > 0
                           ? `${totalClashes} Clashing Slot${totalClashes === 1 ? '' : 's'}`
                           : schedulePreference === 'free_day'
-                          ? 'Free Day Optimization'
-                          : schedulePreference === 'early_friday'
-                          ? 'Early Friday Optimization'
-                          : schedulePreference === 'afternoon'
-                          ? 'Afternoon Schedule'
-                          : 'Morning Schedule'}
+                            ? 'Free Day Optimization'
+                            : schedulePreference === 'early_friday'
+                              ? 'Early Friday Optimization'
+                              : schedulePreference === 'afternoon'
+                                ? 'Afternoon Schedule'
+                                : 'Morning Schedule'}
                       </span>
                     </div>
                     <div className="schedule-status-meta">
@@ -2103,7 +2103,7 @@ function App() {
                         className={`enrolled-module-card ${selectedModuleFilter === item.module ? 'focused' : ''}`}
                       >
                         <div className="enrolled-module-row">
-                          <div 
+                          <div
                             style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flex: 1 }}
                             onClick={() => setSelectedModuleFilter(selectedModuleFilter === item.module ? 'ALL' : item.module)}
                             title="Click to focus on this module in the grid"
@@ -2188,10 +2188,10 @@ function App() {
                       ({schedulePreference === 'free_day'
                         ? 'Free day preference'
                         : schedulePreference === 'early_friday'
-                        ? 'Early Friday preference'
-                        : schedulePreference === 'afternoon'
-                        ? 'Afternoon preference'
-                        : 'Morning preference'})
+                          ? 'Early Friday preference'
+                          : schedulePreference === 'afternoon'
+                            ? 'Afternoon preference'
+                            : 'Morning preference'})
                     </span>
 
                     {totalClashes > 0 && (
@@ -2323,7 +2323,7 @@ function App() {
                       <div className="setup-step-card">
                         <div className="setup-step-number">Step 1</div>
                         <div className="setup-step-label">Semester & Modules</div>
-                        
+
                         <div className="setup-options-group">
                           <button
                             type="button"
@@ -2665,10 +2665,10 @@ function App() {
                         {r.activity === 'L'
                           ? 'Lecture'
                           : r.activity === 'P'
-                          ? 'Practical'
-                          : r.activity === 'T'
-                          ? 'Tutorial'
-                          : r.activity || '–'}
+                            ? 'Practical'
+                            : r.activity === 'T'
+                              ? 'Tutorial'
+                              : r.activity || '–'}
                       </span>
                     </td>
                     <td>{r.day}</td>
