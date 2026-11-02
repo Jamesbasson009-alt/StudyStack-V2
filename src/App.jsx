@@ -9,288 +9,18 @@ import { AuthPage } from './pages/AuthPage.jsx';
 import { EmailConfirmedPage } from './pages/EmailConfirmedPage.jsx';
 import { BooksPage } from './pages/BooksPage.jsx';
 import { LegalPage } from './pages/LegalPage.jsx';
-import { clearAuthLanding, getAuthLanding, getSession, onSessionChange } from './lib/auth.js';
-
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-
-// URL hash <-> view. The landing page, textbook market and legal pages all navigate by view name.
-const HASH_TO_VIEW = {
-  '': 'landing',
-  '#landing': 'landing',
-  '#generator': 'generator',
-  '#signin': 'auth',
-  '#books': 'books',
-  '#terms': 'terms',
-  '#privacy': 'privacy',
-};
-const VIEW_TO_HASH = {
-  landing: '#landing',
-  generator: '#generator',
-  auth: '#signin',
-  books: '#books',
-  terms: '#terms',
-  privacy: '#privacy',
-};
-const DAY_MAP = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri' };
-const PERIODS = ['07:30', '08:30', '09:30', '10:30', '11:30', '12:30', '13:30', '14:30', '15:30', '16:30', '17:30'];
-
-// Desaturated module palette with distinct border and ink colors
-const MODULE_THEMES = [
-  { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af', label: 'blue' },
-  { bg: '#f0fdf4', border: '#bbf7d0', text: '#166534', label: 'green' },
-  { bg: '#fffbeb', border: '#fde68a', text: '#92400e', label: 'amber' },
-  { bg: '#faf5ff', border: '#e9d5ff', text: '#6b21a8', label: 'purple' },
-  { bg: '#f0fdfa', border: '#99f6e4', text: '#115e59', label: 'teal' },
-  { bg: '#fff1f2', border: '#fecdd3', text: '#9f1239', label: 'rose' },
-  { bg: '#fff7ed', border: '#fed7aa', text: '#9a3412', label: 'orange' },
-  { bg: '#f1f5f9', border: '#cbd5e1', text: '#334155', label: 'slate' },
-];
-
-function getModuleTheme(moduleCode, moduleThemesMap) {
-  return moduleThemesMap[moduleCode] || MODULE_THEMES[0];
-}
-
-function timeToMinutes(tStr) {
-  if (!tStr) return 0;
-  const parts = tStr.trim().split(':').map(Number);
-  return (parts[0] || 0) * 60 + (parts[1] || 0);
-}
-
-function findMatchingPeriod(startTimeStr) {
-  if (!startTimeStr) return PERIODS[0];
-  const clean = startTimeStr.trim();
-  if (PERIODS.includes(clean)) return clean;
-  const targetMin = timeToMinutes(clean);
-  let bestPeriod = PERIODS[0];
-  let minDiff = Infinity;
-  for (const p of PERIODS) {
-    const pMin = timeToMinutes(p);
-    const diff = Math.abs(pMin - targetMin);
-    if (diff < minDiff) {
-      minDiff = diff;
-      bestPeriod = p;
-    }
-  }
-  return bestPeriod;
-}
-
-/**
- * Converts selected records into visual timetable events.
- * Crucially deduplicates parallel lab venues (e.g. Informatorium CBT Lab 1, 2, 3 at same time)
- * into a single event with merged venue list.
- */
-function recordsToEvents(records, moduleThemesMap) {
-  const activityLabels = { L: 'Lecture', P: 'Practical', T: 'Tutorial' };
-
-  // Group by (module, activity, group, day, time) to merge multi-lab sessions
-  const mergedMap = {};
-
-  for (const r of records) {
-    const dayShort = DAY_MAP[r.day];
-    if (!dayShort) continue;
-
-    const act = r.activity || 'L';
-    const key = `${r.module}_${act}_${r.group}_${dayShort}_${r.time}`;
-
-    if (!mergedMap[key]) {
-      const parts = r.time.split(' - ');
-      const startTime = parts[0]?.trim();
-      let duration = 1;
-      if (parts.length === 2) {
-        const [sh, sm] = startTime.split(':').map(Number);
-        const [eh, em] = parts[1].split(':').map(Number);
-        const diffMin = (eh * 60 + em) - (sh * 60 + sm);
-        duration = Math.max(1, Math.round(diffMin / 60));
-      }
-
-      const startSlot = findMatchingPeriod(startTime);
-      const actLabel = activityLabels[act] || act;
-      const theme = getModuleTheme(r.module, moduleThemesMap);
-
-      mergedMap[key] = {
-        id: key,
-        title: r.module,
-        venues: r.venue ? [r.venue.trim()] : [],
-        activityLabel: actLabel,
-        activityCode: act,
-        group: r.group,
-        semester: r.semester,
-        campus: r.campus || '',
-        language: r.language || '',
-        day: dayShort,
-        time: startSlot,
-        fullTime: r.time,
-        duration,
-        theme,
-        raw: r,
-      };
-    } else {
-      if (r.venue && !mergedMap[key].venues.includes(r.venue.trim())) {
-        mergedMap[key].venues.push(r.venue.trim());
-      }
-    }
-  }
-
-  return Object.values(mergedMap).map(e => ({
-    ...e,
-    room: e.venues.length > 2 ? `${e.venues[0]} (+${e.venues.length - 1} labs)` : e.venues.join(', ')
-  }));
-}
-
-// Consistent 1.5px stroke SVG Icons (Clean, Professional, Anti-UI Slop)
-const Icons = {
-  Calendar: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-      <line x1="16" y1="2" x2="16" y2="6"></line>
-      <line x1="8" y1="2" x2="8" y2="6"></line>
-      <line x1="3" y1="10" x2="21" y2="10"></line>
-    </svg>
-  ),
-  Table: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 3h18v18H3z"></path>
-      <path d="M3 9h18"></path>
-      <path d="M3 15h18"></path>
-      <path d="M9 3v18"></path>
-    </svg>
-  ),
-  Upload: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-      <polyline points="17 8 12 3 7 8"></polyline>
-      <line x1="12" y1="3" x2="12" y2="15"></line>
-    </svg>
-  ),
-  Download: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-      <polyline points="7 10 12 15 17 10"></polyline>
-      <line x1="12" y1="15" x2="12" y2="3"></line>
-    </svg>
-  ),
-  Search: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8"></circle>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-    </svg>
-  ),
-  FileText: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-      <polyline points="14 2 14 8 20 8"></polyline>
-      <line x1="16" y1="13" x2="8" y2="13"></line>
-      <line x1="16" y1="17" x2="8" y2="17"></line>
-      <polyline points="10 9 9 9 8 9"></polyline>
-    </svg>
-  ),
-  Close: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18"></line>
-      <line x1="6" y1="6" x2="18" y2="18"></line>
-    </svg>
-  ),
-  AlertCircle: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"></circle>
-      <line x1="12" y1="8" x2="12" y2="12"></line>
-      <line x1="12" y1="16" x2="12.01" y2="16"></line>
-    </svg>
-  ),
-  Check: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12"></polyline>
-    </svg>
-  ),
-  Sun: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="5"></circle>
-      <line x1="12" y1="1" x2="12" y2="3"></line>
-      <line x1="12" y1="21" x2="12" y2="23"></line>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-      <line x1="1" y1="12" x2="3" y2="12"></line>
-      <line x1="21" y1="12" x2="23" y2="12"></line>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-    </svg>
-  ),
-  Sunset: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 18a5 5 0 0 0-10 0"></path>
-      <line x1="12" y1="2" x2="12" y2="9"></line>
-      <line x1="4.22" y1="10.22" x2="5.64" y2="11.64"></line>
-      <line x1="1" y1="18" x2="3" y2="18"></line>
-      <line x1="21" y1="18" x2="23" y2="18"></line>
-      <line x1="18.36" y1="11.64" x2="19.78" y2="10.22"></line>
-      <line x1="23" y1="22" x2="1" y2="22"></line>
-      <polyline points="8 6 12 2 16 6"></polyline>
-    </svg>
-  ),
-  Coffee: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
-      <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
-      <line x1="6" y1="1" x2="6" y2="4"></line>
-      <line x1="10" y1="1" x2="10" y2="4"></line>
-      <line x1="14" y1="1" x2="14" y2="4"></line>
-    </svg>
-  ),
-  Zap: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-    </svg>
-  ),
-  Shuffle: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="16 3 21 3 21 8"></polyline>
-      <line x1="4" y1="20" x2="21" y2="3"></line>
-      <polyline points="21 16 21 21 16 21"></polyline>
-      <line x1="15" y1="15" x2="21" y2="21"></line>
-      <line x1="4" y1="4" x2="9" y2="9"></line>
-    </svg>
-  ),
-  Sparkles: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-    </svg>
-  ),
-  ChevronLeft: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 18 9 12 15 6"></polyline>
-    </svg>
-  ),
-  ChevronRight: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6"></polyline>
-    </svg>
-  ),
-};
+import { clearAuthLanding, getAuthLanding, getSession, onSessionChange, signOut } from './lib/auth.js';
+import { loadTimetable, saveTimetable } from './lib/timetableStore.js';
+import { DAYS, PERIODS, MODULE_THEMES, recordsToEvents } from './lib/timetableEvents.js';
+import { useHashRoute } from './hooks/useHashRoute.js';
+import { Icons } from './components/Icons.jsx';
+import { EventInspector } from './components/EventInspector.jsx';
+import { GeneratingOverlay } from './components/GeneratingOverlay.jsx';
+import { PortalGuideModal } from './components/PortalGuideModal.jsx';
+import { FriendsModal, useFriendsShare } from './components/FriendsModal.jsx';
 
 function App() {
-  const [currentView, setCurrentView] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return HASH_TO_VIEW[window.location.hash] || 'landing';
-    }
-    return 'landing';
-  });
-
-  const navigateTo = (view) => {
-    setCurrentView(view);
-    if (typeof window !== 'undefined') {
-      window.location.hash = VIEW_TO_HASH[view] || '#landing';
-      window.scrollTo({ top: 0, behavior: 'auto' });
-    }
-  };
-
-  useEffect(() => {
-    const handleHash = () => {
-      const next = HASH_TO_VIEW[window.location.hash];
-      if (next) setCurrentView(next);
-    };
-    window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
+  const { currentView, navigateTo } = useHashRoute();
 
   // Auth: the signed-in student (or null), and whether the stored session has finished loading.
   const [session, setSession] = useState(null);
@@ -346,6 +76,10 @@ function App() {
 
   // Active solution index when multiple clash-free solutions are found
   const [solutionIndex, setSolutionIndex] = useState(0);
+
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [busyLabel, setBusyLabel] = useState('');
+  const [hydrated, setHydrated] = useState(false); // saved timetable has been loaded (or there was none)
 
   const gridRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -467,7 +201,7 @@ function App() {
   }, [records, selectedSemester, enrolledModules, mixableModules, moduleThemesMap]);
 
   // Run solver for a specific module list, semester, preference, and mixable list
-  const runSolver = (targetModules, targetSemester, targetPref, targetMixable) => {
+  const runSolverNow = (targetModules, targetSemester, targetPref, targetMixable) => {
     const mods = targetModules && targetModules.length > 0 ? targetModules : availableModulesForSemester;
     const sem = targetSemester || selectedSemester || 'S2';
     const pref = targetPref || schedulePreference || 'morning';
@@ -487,13 +221,25 @@ function App() {
     return res;
   };
 
+  // Shows the spinner, then runs the solver on the next tick so the overlay can paint first.
+  const runSolver = (targetModules, targetSemester, targetPref, targetMixable, label = 'Updating timetable…') => {
+    setBusyLabel(label);
+    setTimeout(() => {
+      try {
+        runSolverNow(targetModules, targetSemester, targetPref, targetMixable);
+      } finally {
+        setBusyLabel('');
+      }
+    }, 40);
+  };
+
   // Auto-generate and populate timetable with chosen semester, preference, and mixable modules
   const handleApplySetup = () => {
     const sem = setupSemester || 'S2';
     const pref = setupPreference || 'morning';
     const mods = setupEnrolledModules.length > 0 ? setupEnrolledModules : availableModulesForSemester;
     const mixMods = setupMixableModules.filter(m => mods.includes(m));
-    runSolver(mods, sem, pref, mixMods);
+    runSolver(mods, sem, pref, mixMods, 'Generating your timetable…');
   };
 
   // Switch between schedule preferences (Morning / Afternoon / Free Day / Early Fri)
@@ -553,19 +299,15 @@ function App() {
     }));
   };
 
-  // Events filtered for grid view based on semester, module filter, and EXACT group allocation per unitKey
-  const events = useMemo(() => {
+  // Every session for the chosen modules and groups. This is what gets shared with friends,
+  // so it ignores the "focus on one module" filter used by the grid.
+  const baseEvents = useMemo(() => {
     if (!records.length || !selectedSemester || !enrolledModules.length) return [];
 
-    let subset = records.filter((r) => 
-      isMatchingSemester(r.semester, selectedSemester) && 
+    let subset = records.filter((r) =>
+      isMatchingSemester(r.semester, selectedSemester) &&
       enrolledModules.includes(r.module)
     );
-
-    // Module focus filter
-    if (selectedModuleFilter !== 'ALL') {
-      subset = subset.filter((r) => r.module === selectedModuleFilter);
-    }
 
     // STRICT SINGLE-GROUP FILTER:
     // If module is mixed and activity is 'L', check unitKey `${module}_L_${period}`
@@ -583,7 +325,88 @@ function App() {
     });
 
     return recordsToEvents(subset, moduleThemesMap);
-  }, [records, selectedSemester, enrolledModules, selectedModuleFilter, selectedGroups, mixableModules, moduleThemesMap]);
+  }, [records, selectedSemester, enrolledModules, selectedGroups, mixableModules, moduleThemesMap]);
+
+  const events = useMemo(
+    () => (selectedModuleFilter === 'ALL' ? baseEvents : baseEvents.filter((e) => e.title === selectedModuleFilter)),
+    [baseEvents, selectedModuleFilter]
+  );
+
+  // Friends: sharing link, friend list, free-time comparison.
+  const share = useFriendsShare({
+    userKey: session?.email || null,
+    events: baseEvents,
+    semester: selectedSemester,
+    ready: records.length > 0 && Boolean(selectedSemester),
+  });
+
+  // Restore the signed-in student's saved timetable.
+  useEffect(() => {
+    if (!session?.email) {
+      setHydrated(false);
+      return undefined;
+    }
+    let live = true;
+    (async () => {
+      try {
+        const saved = await loadTimetable();
+        if (!live || !saved?.parsedData?.records?.length) return;
+        const s = saved.settings || {};
+        setParsedData(saved.parsedData);
+        setSelectedFileName(s.fileName || saved.parsedData.originalName || '');
+        setUploadState('done');
+        initSetup(saved.parsedData.records);
+        if (s.semester) {
+          setSelectedSemester(s.semester);
+          setEnrolledModules(s.enrolledModules || []);
+          setMixableModules(s.mixableModules || []);
+          setSelectedGroups(s.selectedGroups || {});
+          setSchedulePreference(s.preference || 'morning');
+          setSetupPreference(s.preference || 'morning');
+        }
+      } catch (e) {
+        console.error('Could not load saved timetable:', e);
+      } finally {
+        if (live) setHydrated(true);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [session?.email]);
+
+  // Save changes back (debounced). Waits for the restore above so it never overwrites it with nothing.
+  useEffect(() => {
+    if (!hydrated || !session?.email || !parsedData?.records?.length) return undefined;
+    const t = setTimeout(() => {
+      saveTimetable({
+        parsedData,
+        settings: {
+          fileName: selectedFileName,
+          semester: selectedSemester,
+          preference: schedulePreference,
+          enrolledModules,
+          mixableModules,
+          selectedGroups,
+        },
+      }).catch((e) => console.error('Could not save timetable:', e));
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [hydrated, session?.email, parsedData, selectedFileName, selectedSemester, schedulePreference, enrolledModules, mixableModules, selectedGroups]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    setParsedData(null);
+    setSelectedSemester(null);
+    setEnrolledModules([]);
+    setMixableModules([]);
+    setSelectedGroups({});
+    setGeneratorResult(null);
+    setSelectedFileName('');
+    setUploadState('idle');
+    setHydrated(false);
+    navigateTo('landing');
+  };
 
   const schedule = useMemo(() => {
     const grid = Array.from({ length: PERIODS.length }, () =>
@@ -613,6 +436,25 @@ function App() {
     return count;
   }, [schedule]);
 
+  // Picks the dominant semester and pre-selects its modules on the setup screen.
+  const initSetup = (recs) => {
+    let s1Count = 0, s2Count = 0;
+    recs.forEach((r) => {
+      const s = (r.semester || '').toUpperCase().trim();
+      if (s.startsWith('S1') || s.startsWith('Q1') || s.startsWith('Q2')) s1Count++;
+      if (s.startsWith('S2') || s.startsWith('Q3') || s.startsWith('Q4')) s2Count++;
+    });
+    const detectedSem = s2Count >= s1Count ? 'S2' : 'S1';
+    setSetupSemester(detectedSem);
+    const detectedMods = Array.from(
+      new Set(recs.filter((r) => isMatchingSemester(r.semester, detectedSem)).map((r) => r.module))
+    ).sort();
+    setSetupEnrolledModules(detectedMods);
+    // Mixing lecture groups is opt-in: nothing is selected until the student chooses modules.
+    setSetupMixableModules([]);
+    setMixableModules([]);
+  };
+
   const handleFile = async (file) => {
     if (!file) return;
     const name = file.name || '';
@@ -639,22 +481,7 @@ function App() {
       setUploadState('done');
       setSelectedModuleFilter('ALL');
 
-      // Auto-detect dominant semester
-      let s1Count = 0, s2Count = 0;
-      data.records.forEach(r => {
-        const s = (r.semester || '').toUpperCase().trim();
-        if (s.startsWith('S1') || s.startsWith('Q1') || s.startsWith('Q2')) s1Count++;
-        if (s.startsWith('S2') || s.startsWith('Q3') || s.startsWith('Q4')) s2Count++;
-      });
-      const detectedSem = s2Count >= s1Count ? 'S2' : 'S1';
-      setSetupSemester(detectedSem);
-
-      const semMatching = data.records.filter(r => isMatchingSemester(r.semester, detectedSem));
-      const detectedMods = Array.from(new Set(semMatching.map(r => r.module))).sort();
-      setSetupEnrolledModules(detectedMods);
-      // Mixing lecture groups is opt-in: nothing is selected until the student chooses modules.
-      setSetupMixableModules([]);
-      setMixableModules([]);
+      initSetup(data.records);
     } catch (e) {
       console.error('Client-side PDF parse error:', e);
       setUploadError('Error parsing PDF: ' + (e.message || 'unknown error'));
@@ -790,6 +617,7 @@ function App() {
           navigateTo('generator');
         }}
         onBack={() => navigateTo('landing')}
+        onNavigate={navigateTo}
       />
     );
   }
@@ -1968,6 +1796,26 @@ function App() {
           .inspector-close-btn { padding: 10px; }
           .inspector-grid { grid-template-columns: 96px 1fr; }
         }
+
+        .account-chip {
+          font-family: var(--font-mono);
+          font-size: 12px;
+          color: var(--text-secondary);
+          padding: 0 4px;
+          white-space: nowrap;
+        }
+        .guide-link {
+          background: none;
+          border: none;
+          padding: 0;
+          margin-top: 8px;
+          font: inherit;
+          font-size: 12px;
+          font-weight: 600;
+          color: #2563eb;
+          cursor: pointer;
+        }
+        .guide-link:hover { text-decoration: underline; }
       `}</style>
 
       {/* Top Utility Header */}
@@ -2082,6 +1930,26 @@ function App() {
               </button>
             </>
           )}
+
+          <button className="btn" onClick={share.openModal} title="Share your timetable and find free time with friends">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span>Friends</span>
+            {share.friends.length > 0 && <span className="badge-tag">{share.friends.length}</span>}
+          </button>
+
+          {session ? (
+            <>
+              <span className="account-chip" title={session.email}>u{session.studentNumber}</span>
+              <button className="btn" onClick={handleSignOut}>Sign out</button>
+            </>
+          ) : (
+            <button className="btn btn-primary" onClick={() => navigateTo('auth')}>Sign in</button>
+          )}
         </div>
       </header>
 
@@ -2131,6 +1999,9 @@ function App() {
                 </div>
                 <div className="dropzone-hint">UP_MOD_XLS*.pdf</div>
               </div>
+              <button type="button" className="guide-link" onClick={() => setGuideOpen(true)}>
+                Where do I get this file?
+              </button>
 
               {selectedFileName && (
                 <div className="file-status-card">
@@ -2686,6 +2557,9 @@ function App() {
                     <Icons.Upload />
                     <span>Select UP module PDF</span>
                   </button>
+                  <button type="button" className="guide-link" onClick={() => setGuideOpen(true)}>
+                    Where do I get this file?
+                  </button>
                 </div>
               )}
             </div>
@@ -2825,68 +2699,10 @@ function App() {
         </div>
       )}
 
-      {/* Class Details Inspector Sheet */}
-      {selectedEvent && (
-        <div
-          className="inspector-overlay"
-          role="presentation"
-          onClick={() => setSelectedEvent(null)}
-        >
-          <div
-            className="inspector-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="inspector-title"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => { if (e.key === 'Escape') setSelectedEvent(null); }}
-            tabIndex={-1}
-          >
-            <div className="inspector-header">
-              <h3 id="inspector-title" className="inspector-title">{selectedEvent.title}</h3>
-              <button
-                className="inspector-close-btn"
-                onClick={() => setSelectedEvent(null)}
-                title="Close inspector"
-                aria-label="Close"
-              >
-                <Icons.Close />
-              </button>
-            </div>
-            <div className="inspector-grid">
-              <span className="inspector-key">Activity</span>
-              <span className="inspector-val">
-                {selectedEvent.activityLabel} ({selectedEvent.activityCode || 'L'})
-              </span>
-
-              <span className="inspector-key">Time</span>
-              <span className="inspector-val mono">
-                {selectedEvent.day} · {selectedEvent.fullTime || selectedEvent.time}
-              </span>
-
-              <span className="inspector-key">Venue(s)</span>
-              <span className="inspector-val">{selectedEvent.venues?.join(', ') || selectedEvent.room}</span>
-
-              <span className="inspector-key">Group / Sem</span>
-              <span className="inspector-val mono">
-                {selectedEvent.group} (Semester: {selectedEvent.semester})
-              </span>
-
-              <span className="inspector-key">Campus</span>
-              <span className="inspector-val">{selectedEvent.campus || selectedEvent.raw?.campus || '–'}</span>
-
-              <span className="inspector-key">Language</span>
-              <span className="inspector-val mono">
-                {selectedEvent.language || selectedEvent.raw?.language || '–'}
-              </span>
-            </div>
-            <div className="inspector-footer">
-              <button className="btn btn-sm" onClick={() => setSelectedEvent(null)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EventInspector event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      <FriendsModal share={share} />
+      <PortalGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
+      <GeneratingOverlay show={Boolean(busyLabel)} label={busyLabel} />
     </div>
   );
 }

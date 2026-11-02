@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 // Views reachable via a URL hash, independent of sign-in state, so a shared or bookmarked
 // #terms / #privacy link opens straight to that page.
-const HASH_VIEWS = ['generator', 'terms', 'privacy', 'books'];
+const HASH_VIEWS = ['generator', 'auth', 'terms', 'privacy', 'books'];
 // Friendly aliases: #textbooks opens the marketplace, same as #books.
 const HASH_ALIASES = { textbooks: 'books' };
 const resolveHash = (raw) => HASH_ALIASES[raw] || raw;
