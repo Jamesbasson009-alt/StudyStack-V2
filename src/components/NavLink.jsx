@@ -7,6 +7,7 @@ const VIEW_TO_PATH = {
   privacy: '/privacy',
   auth: '/login',
   generator: '/generator',
+  guide: '/guide/up-timetable-pdf',
 };
 
 export function NavLink({ view, onNavigate, children, className, style, ...rest }) {

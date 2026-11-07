@@ -196,17 +196,27 @@ function RequestStatusNote({ request }) {
 /* ---------------------------------- page ---------------------------------- */
 
 export function BooksPage({ session, authChecked, onNavigate }) {
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') : '/books';
+  const isModulePage = currentPath.startsWith('/books/') && currentPath.length > 7;
+  const initialModule = isModulePage
+    ? decodeURIComponent(currentPath.replace(/^\/books\//, '')).replace(/-/g, ' ').toUpperCase()
+    : '';
+
   useSeo({
-    title: 'Buy & Sell UP Textbooks Second-Hand | StudyStack',
-    description: 'Find prescribed University of Pretoria textbooks by module code from other UP students, or list your own in a minute.',
-    path: '/books',
+    title: initialModule
+      ? `${initialModule} Prescribed Textbooks Second-Hand | University of Pretoria | StudyStack`
+      : 'Buy & Sell UP Textbooks Second-Hand | StudyStack',
+    description: initialModule
+      ? `Find prescribed ${initialModule} textbooks from other UP (Tuks) students. Buy or sell second-hand course books safely on campus.`
+      : 'Find prescribed University of Pretoria textbooks by module code from other UP students, or list your own in a minute.',
+    path: currentPath,
   });
 
   const [authMode, setAuthMode] = useState(false);
   const [pendingIntent, setPendingIntent] = useState(null); // { type: 'sell' | 'contact', listingId? }
 
   /* browsing */
-  const [filters, setFilters] = useState({ search: '', moduleCode: '', condition: '', maxPrice: '' });
+  const [filters, setFilters] = useState({ search: '', moduleCode: initialModule, condition: '', maxPrice: '' });
   const [draftSearch, setDraftSearch] = useState('');
   const [listings, setListings] = useState([]);
   const [listingsLoading, setListingsLoading] = useState(true);

@@ -9,6 +9,7 @@ import { AuthPage } from './pages/AuthPage.jsx';
 import { EmailConfirmedPage } from './pages/EmailConfirmedPage.jsx';
 import { BooksPage } from './pages/BooksPage.jsx';
 import { LegalPage } from './pages/LegalPage.jsx';
+import { GuidePage } from './pages/GuidePage.jsx';
 import { clearAuthLanding, getAuthLanding, getSession, onSessionChange, signOut } from './lib/auth.js';
 import { loadTimetable, saveTimetable } from './lib/timetableStore.js';
 import { DAYS, PERIODS, MODULE_THEMES, recordsToEvents } from './lib/timetableEvents.js';
@@ -611,6 +612,9 @@ function App() {
   // Public pages: they don't need to wait for the stored session.
   if (currentView === 'books') {
     return <BooksPage session={session} authChecked={authReady} onNavigate={navigateTo} />;
+  }
+  if (currentView === 'guide') {
+    return <GuidePage onNavigate={navigateTo} />;
   }
   if (currentView === 'terms' || currentView === 'privacy') {
     return <LegalPage page={currentView} onNavigate={navigateTo} />;

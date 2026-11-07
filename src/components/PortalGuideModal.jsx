@@ -6,7 +6,7 @@ import React, { useEffect } from 'react';
  * landing page FAQ, so the steps only need updating in one place.
  */
 
-const STEPS = [
+export const STEPS = [
   {
     title: 'Go to the UP Portal',
     body: (

@@ -7,16 +7,27 @@ const PATH_TO_VIEW = {
   '/privacy': 'privacy',
   '/login': 'auth',
   '/generator': 'generator',
+  '/guide/up-timetable-pdf': 'guide',
 };
-const VIEW_TO_PATH = Object.fromEntries(
-  Object.entries(PATH_TO_VIEW).map(([p, v]) => [v, p])
-);
+const VIEW_TO_PATH = {
+  landing: '/',
+  books: '/books',
+  terms: '/terms',
+  privacy: '/privacy',
+  auth: '/login',
+  generator: '/generator',
+  guide: '/guide/up-timetable-pdf',
+};
 
 // Hash alias so old /#textbooks links still work.
 const HASH_ALIASES = { textbooks: 'books' };
 
-const read = () =>
-  PATH_TO_VIEW[window.location.pathname.replace(/\/+$/, '') || '/'] ?? 'landing';
+const read = () => {
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  if (PATH_TO_VIEW[path]) return PATH_TO_VIEW[path];
+  if (path.startsWith('/books/')) return 'books';
+  return 'landing';
+};
 
 export function useHashRoute() {
   const [currentView, setCurrentView] = useState(() => {

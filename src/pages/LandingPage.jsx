@@ -230,21 +230,17 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           Download your module timetable export directly from the University of Pretoria Student Portal
           (my.up.ac.za). The official exported file name usually starts with UP_MOD_XLS (for example:
           UP_MOD_XLS_2026.pdf).{' '}
-          <button
-            type="button"
-            onClick={() => setShowPortalGuide(true)}
+          <NavLink
+            view="guide"
+            onNavigate={onNavigate}
             style={{
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              font: 'inherit',
               fontWeight: 600,
               color: '#2563eb',
-              cursor: 'pointer',
+              textDecoration: 'none',
             }}
           >
             See the step-by-step guide →
-          </button>
+          </NavLink>
         </>
       )
     },
