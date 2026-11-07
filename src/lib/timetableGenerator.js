@@ -690,8 +690,9 @@ function findMinimumClashAssignment(decisionUnits, normPreference) {
  * @param {string} semester - "S1", "S2", or "ALL"
  * @param {Array<string>} mixableModules - Array of module codes where lecture groups can be mixed
  * @param {number} maxSolutionsToKeep - Limit on solutions to keep (default 200)
+ * @param {number} [timeBudgetMs] - Wall-clock timeout limit in ms (defaults to 12s for free_day, 8s for others)
  */
-export function generateTimetable(records, enrolledModules, preferenceMode = 'morning', semester = 'S2', mixableModules = [], maxSolutionsToKeep = 200) {
+export function generateTimetable(records, enrolledModules, preferenceMode = 'morning', semester = 'S2', mixableModules = [], maxSolutionsToKeep = 200, timeBudgetMs = null) {
   const normPreference = normalizePreference(preferenceMode);
   const decisionUnits = buildDecisionUnits(records, enrolledModules, semester, mixableModules);
 
@@ -781,9 +782,24 @@ export function generateTimetable(records, enrolledModules, preferenceMode = 'mo
   // instead of re-deriving near-duplicates of the first one found.
   const NODE_BUDGET = 10000000; // primary control on result quality — the same for every device
   const TIME_CHECK_INTERVAL_NODES = 2000; // amortize performance.now() overhead across many nodes
-  const TIME_BUDGET_MS = 5000; // backstop — with pruning in place this should rarely trigger, but caps worst-case loading at ~5s
+  // Increased load time budget (especially for free_day from 5s to 12s) so that the
+  // solver can explore deeper branch combinations to find the best possible optimization.
+  const DEFAULT_TIME_BUDGET_MS = normPreference === 'free_day' ? 12000 : 8000;
+  const TIME_BUDGET_MS = timeBudgetMs || DEFAULT_TIME_BUDGET_MS;
 
   const searchStartTime = performance.now();
+
+  // Pre-calculate per-option metadata once to avoid heavy allocations during search
+  for (const unit of decisionUnits) {
+    for (const opt of unit.options) {
+      const daySet = new Set(opt.meetings.map(m => m.day));
+      opt._days = Array.from(daySet);
+      opt._touchesFriday = daySet.has('Friday') ? 1 : 0;
+      opt._touchesMonday = daySet.has('Monday') ? 1 : 0;
+      const totalStart = opt.meetings.reduce((s, m) => s + m.startMinutes, 0);
+      opt._avgStart = opt.meetings.length ? totalStart / opt.meetings.length : 0;
+    }
+  }
 
   const usesDynamicOrdering = normPreference === 'free_day';
   const searchUnits = [...decisionUnits]
@@ -798,7 +814,9 @@ export function generateTimetable(records, enrolledModules, preferenceMode = 'mo
 
   function scoreOptionForOrdering(option, currentMeetings) {
     const meetings = option.meetings;
-    const avgStart = meetings.reduce((s, m) => s + m.startMinutes, 0) / (meetings.length || 1);
+    const avgStart = option._avgStart !== undefined
+      ? option._avgStart
+      : (meetings.reduce((s, m) => s + m.startMinutes, 0) / (meetings.length || 1));
 
     if (normPreference === 'afternoon') {
       return -avgStart;
@@ -816,11 +834,11 @@ export function generateTimetable(records, enrolledModules, preferenceMode = 'mo
       // fewer days). Extra penalty for newly touching Friday/Monday, since
       // those are the days most valuable to keep free (matches the final
       // solution-ranking tie-break below).
-      const usedDays = new Set(currentMeetings.map(m => m.day));
-      const optionDays = new Set(meetings.map(m => m.day));
       let newDays = 0, touchesNewFriday = 0, touchesNewMonday = 0;
-      for (const d of optionDays) {
-        if (!usedDays.has(d)) {
+      const optDays = option._days || meetings.map(m => m.day);
+      for (let i = 0; i < optDays.length; i++) {
+        const d = optDays[i];
+        if (dayUsageCounts[d] === 0) {
           newDays++;
           if (d === 'Friday') touchesNewFriday = 1;
           if (d === 'Monday') touchesNewMonday = 1;
@@ -878,6 +896,9 @@ export function generateTimetable(records, enrolledModules, preferenceMode = 'mo
   const currentAssignment = [];
   const currentMeetings = [];
 
+  const dayUsageCounts = { Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0, Friday: 0 };
+  let uniqueDaysUsed = 0;
+
   function backtrack(unitIndex) {
     if (searchLimited) return;
 
@@ -897,12 +918,17 @@ export function generateTimetable(records, enrolledModules, preferenceMode = 'mo
     // the worst solution still in that list can be skipped entirely rather
     // than enumerated leaf by leaf — this is what lets one strong candidate
     // found early prune away the vast majority of the remaining tree.
-    if (normPreference === 'free_day' && topSolutions.length >= maxSolutionsToKeep) {
-      const worstKept = topSolutions[topSolutions.length - 1].core;
-      const usedDays = new Set(currentMeetings.map(m => m.day)).size;
-      const bestPossibleFreeDays = WEEKDAYS.length - usedDays;
-      if (bestPossibleFreeDays < worstKept.freeDaysCount) {
-        return;
+    if (normPreference === 'free_day') {
+      const bestPossibleFreeDays = WEEKDAYS.length - uniqueDaysUsed;
+      if (topSolutions.length >= maxSolutionsToKeep) {
+        const worstKept = topSolutions[topSolutions.length - 1].core;
+        if (bestPossibleFreeDays < worstKept.freeDaysCount) {
+          return;
+        }
+      } else if (topSolutions.length > 0 && topSolutions[0].core.freeDaysCount > 0) {
+        if (bestPossibleFreeDays === 0) {
+          return;
+        }
       }
     }
 
@@ -935,7 +961,20 @@ export function generateTimetable(records, enrolledModules, preferenceMode = 'mo
         currentMeetings.push(...addedMeetings);
         currentAssignment.push(option);
 
+        const optDays = option._days;
+        if (optDays) {
+          for (let j = 0; j < optDays.length; j++) {
+            if (++dayUsageCounts[optDays[j]] === 1) uniqueDaysUsed++;
+          }
+        }
+
         backtrack(unitIndex + 1);
+
+        if (optDays) {
+          for (let j = 0; j < optDays.length; j++) {
+            if (--dayUsageCounts[optDays[j]] === 0) uniqueDaysUsed--;
+          }
+        }
 
         currentAssignment.pop();
         currentMeetings.length -= addedMeetings.length;
