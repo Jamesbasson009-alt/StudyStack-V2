@@ -12,7 +12,7 @@ const STEPS = [
     body: (
       <>
         Open {' '}
-        <a href="https://www.up.ac.za" target="_blank" rel="noreferrer">up.ac.za</a> and click{' '}
+        <a href="https://www.up.ac.za" target="_blank" rel="noopener noreferrer">up.ac.za</a> and click{' '}
         <strong>"My UP Login"</strong>. This is the same portal you use for registration, fees, and results —
         not clickUP, which is only for course content.
       </>

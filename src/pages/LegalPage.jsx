@@ -1,4 +1,6 @@
 import React from 'react';
+import { NavLink } from '../components/NavLink.jsx';
+import { useSeo } from '../lib/useSeo.js';
 
 /**
  * StudyStack Terms of Service + Privacy Policy.
@@ -205,7 +207,7 @@ function PrivacyContent() {
           StudyStack ("we," "us") decides how your personal information is processed through the Service.
           For any privacy question, request, or concern, contact{' '}
           <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. If you're in South Africa, you can also
-          contact the Information Regulator (<a href="https://inforegulator.org.za" target="_blank" rel="noreferrer">inforegulator.org.za</a>) about
+          contact the Information Regulator (<a href="https://inforegulator.org.za" target="_blank" rel="noopener noreferrer">inforegulator.org.za</a>) about
           how your personal information is handled, under the Protection of Personal Information Act
           ("POPIA").
         </p>
@@ -340,6 +342,16 @@ function PrivacyContent() {
 
 export function LegalPage({ page, onNavigate }) {
   const isPrivacy = page === 'privacy';
+
+  useSeo({
+    title: isPrivacy
+      ? 'Privacy Policy | StudyStack'
+      : 'Terms of Service | StudyStack',
+    description: isPrivacy
+      ? 'How StudyStack handles your personal information under POPIA. Your timetable stays in your browser.'
+      : 'Terms of Service for StudyStack, the independent timetable generator and textbook marketplace for University of Pretoria students.',
+    path: isPrivacy ? '/privacy' : '/terms',
+  });
 
   const go = (target) => {
     if (onNavigate) onNavigate(target);
@@ -534,12 +546,12 @@ export function LegalPage({ page, onNavigate }) {
       `}</style>
 
       <header className="legal-topbar">
-        <button type="button" className="legal-back" onClick={() => go('landing')}>
+        <NavLink view="landing" onNavigate={onNavigate} className="legal-back">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
           Back to home
-        </button>
+        </NavLink>
         <div className="legal-brand">
           <img src="/studystack-mark.png" alt="" className="legal-brand-logo" />
           <span>StudyStack</span>
@@ -548,12 +560,12 @@ export function LegalPage({ page, onNavigate }) {
 
       <div className="legal-shell">
         <nav className="legal-switch" role="tablist" aria-label="Legal documents">
-          <button type="button" role="tab" aria-selected={!isPrivacy} className={!isPrivacy ? 'active' : ''} onClick={() => go('terms')}>
+          <NavLink view="terms" onNavigate={onNavigate} role="tab" aria-selected={!isPrivacy} className={!isPrivacy ? 'active' : ''}>
             Terms of Service
-          </button>
-          <button type="button" role="tab" aria-selected={isPrivacy} className={isPrivacy ? 'active' : ''} onClick={() => go('privacy')}>
+          </NavLink>
+          <NavLink view="privacy" onNavigate={onNavigate} role="tab" aria-selected={isPrivacy} className={isPrivacy ? 'active' : ''}>
             Privacy Policy
-          </button>
+          </NavLink>
         </nav>
 
         <article className="legal-doc" onClick={handleContentClick}>

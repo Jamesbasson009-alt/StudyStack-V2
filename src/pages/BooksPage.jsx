@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AuthPage } from './AuthPage.jsx';
+import { NavLink } from '../components/NavLink.jsx';
+import { useSeo } from '../lib/useSeo.js';
 import {
   CONDITIONS,
   conditionLabel,
@@ -194,6 +196,12 @@ function RequestStatusNote({ request }) {
 /* ---------------------------------- page ---------------------------------- */
 
 export function BooksPage({ session, authChecked, onNavigate }) {
+  useSeo({
+    title: 'Buy & Sell UP Textbooks Second-Hand | StudyStack',
+    description: 'Find prescribed University of Pretoria textbooks by module code from other UP students, or list your own in a minute.',
+    path: '/books',
+  });
+
   const [authMode, setAuthMode] = useState(false);
   const [pendingIntent, setPendingIntent] = useState(null); // { type: 'sell' | 'contact', listingId? }
 
@@ -537,16 +545,16 @@ export function BooksPage({ session, authChecked, onNavigate }) {
       <style>{MKT_STYLES}</style>
 
       <nav className="mkt-nav">
-        <button type="button" className="mkt-nav-brand" onClick={() => onNavigate?.('landing')}>
+        <NavLink view="landing" onNavigate={onNavigate} className="mkt-nav-brand">
           <img src="/studystack-mark.png" alt="" className="mkt-nav-logo" />
           <span className="mkt-nav-title">StudyStack</span>
           <span className="mkt-nav-badge">Textbooks</span>
-        </button>
+        </NavLink>
 
         <div className="mkt-nav-actions">
-          <button type="button" className="mkt-btn mkt-btn-ghost" onClick={() => onNavigate?.('landing')}>
+          <NavLink view="landing" onNavigate={onNavigate} className="mkt-btn mkt-btn-ghost">
             <Icon.ArrowLeft /> <span>Home</span>
-          </button>
+          </NavLink>
           {session && (
             <button type="button" className="mkt-btn mkt-btn-ghost" onClick={openDashboard}>
               <Icon.Inbox /> <span>My textbooks</span>

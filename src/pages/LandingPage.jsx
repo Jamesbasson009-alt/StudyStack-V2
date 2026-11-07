@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { PortalGuideModal } from '../components/PortalGuideModal.jsx';
-import { TimetableDemo } from '../components/TimetableDemo.jsx';
+import { NavLink } from '../components/NavLink.jsx';
+import { useSeo } from '../lib/useSeo.js';
+
+const TimetableDemo = lazy(() => import('../components/TimetableDemo.jsx'));
 
 const IconZap = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -134,6 +137,12 @@ const IconUsers = ({ size = 22 }) => (
 );
 
 export function LandingPage({ onLaunchGenerator, onNavigate }) {
+  useSeo({
+    title: 'UP Timetable Generator – Clash-Free Schedules | StudyStack',
+    description: 'Upload your UP module timetable PDF and get clash-free lecture, practical and tutorial schedules in seconds. Runs in your browser, built for Tuks students.',
+    path: '/',
+  });
+
   const [activeFaq, setActiveFaq] = useState(null);
   const [showPortalGuide, setShowPortalGuide] = useState(false);
   const [demoPref, setDemoPref] = useState('morning');
@@ -1191,13 +1200,13 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           <a href="#features" className="landing-nav-link" onClick={handleNavClick('features')}>Features</a>
           <a href="#friends" className="landing-nav-link" onClick={handleNavClick('friends')}>Friends</a>
           <a href="#faq" className="landing-nav-link" onClick={handleNavClick('faq')}>FAQ</a>
-          <button
-            type="button"
+          <NavLink
+            view="books"
             className="landing-nav-link landing-nav-link-btn"
-            onClick={() => onNavigate?.('books')}
+            onNavigate={onNavigate}
           >
             Textbook Market
-          </button>
+          </NavLink>
         </div>
 
         <div className="landing-nav-actions">
@@ -1233,7 +1242,7 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           <a href="#features" onClick={handleNavClick('features')}>Features</a>
           <a href="#friends" onClick={handleNavClick('friends')}>Friends</a>
           <a href="#faq" onClick={handleNavClick('faq')}>FAQ</a>
-          <button type="button" onClick={() => { setMenuOpen(false); onNavigate?.('books'); }}>Textbook Market</button>
+          <NavLink view="books" onNavigate={(v) => { setMenuOpen(false); onNavigate?.(v); }}>Textbook Market</NavLink>
         </div>
       )}
 
@@ -1248,6 +1257,9 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           <img
             src="/studystack-logo-cropped.png"
             decoding="async"
+            fetchpriority="high"
+            width="320"
+            height="320"
             alt="StudyStack – UP timetable generator logo"
             className="hero-main-logo"
           />
@@ -1277,14 +1289,14 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
             </svg>
           </button>
 
-          <button
-            type="button"
+          <NavLink
+            view="books"
             className="hero-secondary-btn"
-            onClick={() => onNavigate?.('books')}
+            onNavigate={onNavigate}
           >
             <IconBook size={16} />
             <span>Browse UP Textbooks</span>
-          </button>
+          </NavLink>
 
           <div className="hero-trust-row">
             <span className="hero-trust-item">
@@ -1350,11 +1362,13 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
             Pick a preference and flick through the options. Each one produces a genuinely different week, and every schedule is clash-free.
           </p>
         </div>
-        <TimetableDemo
-          onLaunchGenerator={onLaunchGenerator}
-          preference={demoPref}
-          onPreferenceChange={setDemoPref}
-        />
+        <Suspense fallback={<div style={{ minHeight: 400 }} />}>
+          <TimetableDemo
+            onLaunchGenerator={onLaunchGenerator}
+            preference={demoPref}
+            onPreferenceChange={setDemoPref}
+          />
+        </Suspense>
       </section>
 
       {/* How it works Section */}
@@ -1541,13 +1555,13 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
         </div>
 
         <div className="market-cta-row">
-          <button type="button" className="market-cta-btn" onClick={() => onNavigate?.('books')}>
+          <NavLink view="books" onNavigate={onNavigate} className="market-cta-btn">
             <IconBook size={18} />
             <span>Browse Textbooks</span>
-          </button>
-          <button type="button" className="market-cta-link" onClick={() => onNavigate?.('books')}>
+          </NavLink>
+          <NavLink view="books" onNavigate={onNavigate} className="market-cta-link">
             Have a book to sell? List it in a minute →
-          </button>
+          </NavLink>
         </div>
       </section>
 
@@ -1600,10 +1614,10 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
             <IconZap size={18} />
             <span>Launch Timetable Generator</span>
           </button>
-          <button className="banner-btn banner-btn-outline" onClick={() => onNavigate?.('books')}>
+          <NavLink view="books" onNavigate={onNavigate} className="banner-btn banner-btn-outline">
             <IconBook size={18} />
             <span>Browse Textbooks</span>
-          </button>
+          </NavLink>
         </div>
       </div>
 
@@ -1628,9 +1642,9 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
               <a href="#friends" className="footer-link-item" onClick={handleNavClick('friends')}>Friends</a>
               <a href="#textbooks" className="footer-link-item" onClick={handleNavClick('textbooks')}>Textbooks</a>
               <a href="#faq" className="footer-link-item" onClick={handleNavClick('faq')}>FAQ</a>
-              <button type="button" className="footer-action-btn" onClick={() => onNavigate?.('books')}>
+              <NavLink view="books" onNavigate={onNavigate} className="footer-action-btn">
                 Browse Textbooks →
-              </button>
+              </NavLink>
               <button type="button" className="footer-action-btn" onClick={onLaunchGenerator}>
                 Open Generator →
               </button>
@@ -1638,13 +1652,13 @@ export function LandingPage({ onLaunchGenerator, onNavigate }) {
           </div>
 
           <div className="footer-legal-row">
-            <button type="button" className="footer-legal-link" onClick={() => onNavigate?.('terms')}>
+            <NavLink view="terms" onNavigate={onNavigate} className="footer-legal-link">
               Terms of Service
-            </button>
+            </NavLink>
             <span className="footer-legal-sep" aria-hidden="true">·</span>
-            <button type="button" className="footer-legal-link" onClick={() => onNavigate?.('privacy')}>
+            <NavLink view="privacy" onNavigate={onNavigate} className="footer-legal-link">
               Privacy Policy
-            </button>
+            </NavLink>
           </div>
 
           <div className="footer-disclaimer-card">

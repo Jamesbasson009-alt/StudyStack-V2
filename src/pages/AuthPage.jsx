@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { NavLink } from '../components/NavLink.jsx';
+import { useSeo } from '../lib/useSeo.js';
 import {
   AuthError,
   MIN_PASSWORD_LENGTH,
@@ -115,6 +117,13 @@ function describeError(err) {
 }
 
 export function AuthPage({ onAuthenticated, onBack, onNavigate }) {
+  useSeo({
+    title: 'Sign In | StudyStack',
+    description: 'Sign in to StudyStack with your UP student email to generate clash-free timetables.',
+    path: '/login',
+    noindex: true,
+  });
+
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
   const [digits, setDigits] = useState('');
   const [password, setPassword] = useState('');
@@ -746,12 +755,12 @@ export function AuthPage({ onAuthenticated, onBack, onNavigate }) {
       </aside>
 
       <main className="auth-main">
-        <button type="button" className="auth-back" onClick={onBack}>
+        <NavLink view="landing" onNavigate={onNavigate || onBack} className="auth-back">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
           Back to home
-        </button>
+        </NavLink>
 
         <div className="auth-card">
           <div className="auth-brand auth-brand-mobile">
@@ -936,13 +945,13 @@ export function AuthPage({ onAuthenticated, onBack, onNavigate }) {
                       />
                       <span>
                         I agree to StudyStack's{' '}
-                        <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('terms')}>
+                        <NavLink view="terms" onNavigate={onNavigate} className="auth-link-inline">
                           Terms of Service
-                        </button>{' '}
+                        </NavLink>{' '}
                         and{' '}
-                        <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('privacy')}>
+                        <NavLink view="privacy" onNavigate={onNavigate} className="auth-link-inline">
                           Privacy Policy
-                        </button>.
+                        </NavLink>.
                       </span>
                     </label>
                     {errors.agree && (
@@ -967,13 +976,13 @@ export function AuthPage({ onAuthenticated, onBack, onNavigate }) {
               {!isSignup && (
                 <p className="auth-note">
                   By signing in, you agree to StudyStack's{' '}
-                  <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('terms')}>
+                  <NavLink view="terms" onNavigate={onNavigate} className="auth-link-inline">
                     Terms of Service
-                  </button>{' '}
+                  </NavLink>{' '}
                   and{' '}
-                  <button type="button" className="auth-link-inline" onClick={() => onNavigate?.('privacy')}>
+                  <NavLink view="privacy" onNavigate={onNavigate} className="auth-link-inline">
                     Privacy Policy
-                  </button>.
+                  </NavLink>.
                 </p>
               )}
             </>

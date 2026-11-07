@@ -13,11 +13,22 @@ import { clearAuthLanding, getAuthLanding, getSession, onSessionChange, signOut 
 import { loadTimetable, saveTimetable } from './lib/timetableStore.js';
 import { DAYS, PERIODS, MODULE_THEMES, recordsToEvents } from './lib/timetableEvents.js';
 import { useHashRoute } from './lib/useHashRoute.js';
+import { useSeo } from './lib/useSeo.js';
 import { Icons } from './components/Icons.jsx';
 import { EventInspector } from './components/EventInspector.jsx';
 import { GeneratingOverlay } from './components/GeneratingOverlay.jsx';
 import { PortalGuideModal } from './components/PortalGuideModal.jsx';
 import { FriendsModal, useFriendsShare } from './components/FriendsModal.jsx';
+
+function GeneratorSeo() {
+  useSeo({
+    title: 'Timetable Generator | StudyStack',
+    description: 'Generate your clash-free University of Pretoria timetable.',
+    path: '/generator',
+    noindex: true,
+  });
+  return null;
+}
 
 function App() {
   const { currentView, navigateTo } = useHashRoute();
@@ -633,6 +644,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      <GeneratorSeo />
       <style>{`
         :root {
           --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

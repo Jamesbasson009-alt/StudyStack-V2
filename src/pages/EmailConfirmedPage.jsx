@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getSession } from '../lib/auth.js';
+import { useSeo } from '../lib/useSeo.js';
 
 /**
  * Where the link in the confirmation email lands.
@@ -13,6 +14,13 @@ import { getSession } from '../lib/auth.js';
  * different device or browser there's no session, so we send them to sign in instead.
  */
 export function EmailConfirmedPage({ landing, onContinue, onSignIn }) {
+  useSeo({
+    title: 'Email Confirmed | StudyStack',
+    description: 'Your StudyStack account email has been confirmed.',
+    path: '/',
+    noindex: true,
+  });
+
   const isError = landing?.status === 'error';
   const [signedIn, setSignedIn] = useState(isError ? false : null); // null = still checking
   const headingRef = useRef(null);
